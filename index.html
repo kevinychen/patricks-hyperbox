@@ -1,0 +1,73 @@
+<html>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <style>
+        canvas {
+            width: 1200px;
+            height: 800px;
+            border: 1px solid black;
+            margin: 0 auto;
+        }
+    </style>
+    <script>
+        function sinh(x) {
+            return (Math.exp(x) - Math.exp(-x)) / 2;
+        }
+
+        function cosh(x) {
+            return (Math.exp(x) + Math.exp(-x)) / 2;
+        }
+
+        function acosh(x) {
+            return Math.log(x + Math.sqrt(x * x - 1));
+        }
+
+        const WIDTH = 1200;
+        const HEIGHT = 800;
+        const SCALE = 100;
+        const NUM_STEPS = 100;
+        const P = 4; // number of sides of polygon
+        const Q = 5; // number of polygons that meet at each vertex
+
+        // Note these expressions are only valid for P=4
+        const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
+        const K = 1 / acosh(COT * COT); // Gaussian curvature
+        const R = K * acosh(COT); // radius from center of polygon to vertex
+
+        function from_polar(r, θ) {
+            return [WIDTH / 2 + SCALE * r * Math.cos(θ), HEIGHT / 2 - SCALE * r * Math.sin(θ)];
+        }
+
+        function drawLine(ctx, start_r, start_θ, len, heading) {
+            const ϕ = start_θ + Math.PI - heading;
+            ctx.beginPath();
+            ctx.moveTo(...from_polar(start_r, start_θ));
+            for (let step = 1; step <= NUM_STEPS; step++) {
+                const t = len * step / NUM_STEPS;
+                const r = K * acosh(cosh(t / K) * cosh(start_r / K) - sinh(t / K) * sinh(start_r / K) * Math.cos(ϕ));
+                const θ = start_θ + Math.asin(sinh(t / K) * Math.sin(ϕ) / sinh(r / K));
+                ctx.lineTo(...from_polar(r, θ));
+                if (step == NUM_STEPS) {
+                    console.log(start_r, start_θ);
+                    console.log(r, θ);
+                }
+            }
+            ctx.stroke();
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+        console.log(K);
+        console.log(R);
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        for (let i = 0; i < P; i++) {
+            const θ = 2 * Math.PI * (i + .5) / P;
+            drawLine(ctx, R, θ, 1, θ + Math.PI - Math.PI / Q);
+        }
+    </script>
+</body>
+
+</html>
