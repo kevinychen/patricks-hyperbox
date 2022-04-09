@@ -23,10 +23,14 @@
             return Math.log(x + Math.sqrt(x * x - 1));
         }
 
+        function asinh(x) {
+            return Math.log(x + Math.sqrt(x * x + 1));
+        }
+
         const WIDTH = 1200;
         const HEIGHT = 800;
         const SCALE = 100;
-        const NUM_STEPS = 100;
+        const NUM_STEPS = 10;
         const P = 4; // number of sides of polygon
         const Q = 5; // number of polygons that meet at each vertex
 
@@ -34,39 +38,55 @@
         const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
         const K = 1 / acosh(COT * COT); // Gaussian curvature
         const R = K * acosh(COT); // radius from center of polygon to vertex
+        const D = 2 * K * asinh(Math.sin(Math.PI / Q) * sinh(1 / (2 * K)) * Math.sqrt(2)); // distance between centers of adjacent polygons
 
         function from_polar(r, θ) {
             return [WIDTH / 2 + SCALE * r * Math.cos(θ), HEIGHT / 2 - SCALE * r * Math.sin(θ)];
         }
 
+        function move(start_r, start_θ, len, heading) {
+            if (start_r === 0) {
+                return [len, heading, heading];
+            }
+            const ϕ = (start_θ + Math.PI - heading) % (2 * Math.PI);
+            const crossProductSignum = ϕ < -Math.PI || (ϕ > 0 && ϕ < Math.PI) ? 1 : -1;
+            const r = K * acosh(cosh(len / K) * cosh(start_r / K) - sinh(len / K) * sinh(start_r / K) * Math.cos(ϕ));
+            const θ = Math.acos((cosh(r / K) * cosh(start_r / K) - cosh(len / K)) / (sinh(r / K) * sinh(start_r / K)))
+                * crossProductSignum
+                + start_θ;
+            const newHeading = Math.acos((cosh(r / K) * cosh(len / K) - cosh(start_r / K)) / (sinh(r / K) * sinh(len / K)))
+                * crossProductSignum
+                + θ;
+            return [r, θ, newHeading];
+        }
+
         function drawLine(ctx, start_r, start_θ, len, heading) {
-            const ϕ = start_θ + Math.PI - heading;
             ctx.beginPath();
             ctx.moveTo(...from_polar(start_r, start_θ));
             for (let step = 1; step <= NUM_STEPS; step++) {
-                const t = len * step / NUM_STEPS;
-                const r = K * acosh(cosh(t / K) * cosh(start_r / K) - sinh(t / K) * sinh(start_r / K) * Math.cos(ϕ));
-                const θ = start_θ + Math.asin(sinh(t / K) * Math.sin(ϕ) / sinh(r / K));
+                const [r, θ, newHeading] = move(start_r, start_θ, len * step / NUM_STEPS, heading);
                 ctx.lineTo(...from_polar(r, θ));
-                if (step == NUM_STEPS) {
-                    console.log(start_r, start_θ);
-                    console.log(r, θ);
-                }
             }
             ctx.stroke();
+        }
+
+        function drawPolygon(ctx, center_r, center_θ) {
+            for (let i = 0; i < P; i++) {
+                const heading = 2 * Math.PI * (i + .5) / P;
+                const [r, θ, newHeading] = move(center_r, center_θ, R, heading);
+                drawLine(ctx, r, θ, 1, newHeading + Math.PI - Math.PI / Q);
+            }
         }
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
-        console.log(K);
-        console.log(R);
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        for (let i = 0; i < P; i++) {
-            const θ = 2 * Math.PI * (i + .5) / P;
-            drawLine(ctx, R, θ, 1, θ + Math.PI - Math.PI / Q);
-        }
+        let [r, θ] = [0, 0];
+        drawPolygon(ctx, r, θ);
+        [r, θ, heading] = move(r, θ, D, Math.PI / 2);
+        drawPolygon(ctx, r, θ);
     </script>
 </body>
 
