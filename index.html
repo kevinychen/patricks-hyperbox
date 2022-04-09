@@ -20,6 +20,7 @@
             '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
             '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
             '{7,3}': [[1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 2, 'L', 'L']],
+            '{8,3}': [[1, 1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 1, 2, 'L', 'L']],
         }[`{${P},${Q}}`];
 
         function generateMap(maxDepth) {
@@ -32,7 +33,7 @@
 
             function generateMapHelper(nodeIndex, neighborIndex) {
                 const { state, depth, neighbors } = map[nodeIndex];
-                if (depth === maxDepth || neighbors[neighborIndex] !== undefined) {
+                if (neighbors[neighborIndex] !== undefined) {
                     return;
                 }
                 // uncomment to make map asymmetric for testing purposes
@@ -40,7 +41,7 @@
                 //     return;
                 // }
                 const nextState = CONNECTION_RULES[state][neighborIndex];
-                if (typeof (nextState) === 'number') {
+                if (typeof (nextState) === 'number' && depth < maxDepth) {
                     const node = { state: nextState, depth: depth + 1, neighbors: new Array(P) };
                     const newNodeIndex = map.length;
                     map.push(node);
@@ -48,8 +49,10 @@
                     for (let i = 0; i < P; i++) {
                         generateMapHelper(newNodeIndex, i);
                     }
-                } else {
-                    const d = { 'L': 1, 'R': P - 1 }[nextState];
+                    return;
+                }
+                const d = { 'L': 1, 'R': P - 1 }[nextState];
+                if (d !== undefined) {
                     let edge = { nodeIndex, returnNeighborIndex: neighborIndex };
                     for (let k = 0; k < Q - 1; k++) {
                         const neighborIndex = (edge.returnNeighborIndex + d) % P;
@@ -187,6 +190,7 @@
 
         document.addEventListener('keydown', e => {
             let dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            // let dir = { Numpad6: 0, Numpad9: 1, Numpad8: 2, Numpad7: 3, Numpad4: 4, Numpad1: 5, Numpad2: 6, Numpad3: 7 }[e.code];
             if (dir !== undefined) {
                 if (parentDir % 1 === .5) {
                     dir -= .5;
