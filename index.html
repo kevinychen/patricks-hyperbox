@@ -11,6 +11,61 @@
         }
     </style>
     <script>
+        const P = 4; // number of sides of polygon
+        const Q = 6; // number of polygons that meet at each vertex
+
+        // Connection rules for the tessellation with Schlafli symbol {p,q}, in counterclockwise order.
+        // See Section 2 of "Generating Tree Structures for Hyperbolic Tessellations" by D Celińska-Kopczyńska, https://arxiv.org/pdf/2111.12040.pdf.
+        const CONNECTION_RULES = {
+            '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
+            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
+        }[`{${P},${Q}}`];
+
+        function generateMap(maxDepth) {
+            const map = [{ state: 0, depth: 0, neighbors: new Array(P) }];
+
+            function connect(nodeIndex1, returnNeighborIndex1, nodeIndex2, returnNeighborIndex2) {
+                map[nodeIndex1].neighbors[returnNeighborIndex1] = { nodeIndex: nodeIndex2, returnNeighborIndex: returnNeighborIndex2 };
+                map[nodeIndex2].neighbors[returnNeighborIndex2] = { nodeIndex: nodeIndex1, returnNeighborIndex: returnNeighborIndex1 };
+            }
+
+            function generateMapHelper(nodeIndex, neighborIndex) {
+                const { state, depth, neighbors } = map[nodeIndex];
+                if (depth === maxDepth || neighbors[neighborIndex] !== undefined) {
+                    return;
+                }
+                const nextState = CONNECTION_RULES[state][neighborIndex];
+                if (typeof (nextState) === 'number') {
+                    const node = { state: nextState, depth: depth + 1, neighbors: new Array(P) };
+                    const newNodeIndex = map.length;
+                    map.push(node);
+                    connect(nodeIndex, neighborIndex, newNodeIndex, 0);
+                    for (let i = 0; i < P; i++) {
+                        generateMapHelper(newNodeIndex, i);
+                    }
+                } else {
+                    const d = { 'L': 1, 'R': P - 1 }[nextState];
+                    let edge = { nodeIndex, returnNeighborIndex: neighborIndex };
+                    for (let k = 0; k < Q - 1; k++) {
+                        const neighborIndex = (edge.returnNeighborIndex + d) % P;
+                        generateMapHelper(edge.nodeIndex, neighborIndex);
+                        edge = map[edge.nodeIndex].neighbors[neighborIndex];
+                        if (edge === undefined) {
+                            return;
+                        }
+                    }
+                    connect(nodeIndex, neighborIndex, edge.nodeIndex, (edge.returnNeighborIndex + d) % P);
+                }
+            }
+
+            for (let i = 0; i < P; i++) {
+                generateMapHelper(0, i);
+            }
+            return map;
+        }
+
+        /* rendering */
+
         function sinh(x) {
             return (Math.exp(x) - Math.exp(-x)) / 2;
         }
@@ -32,14 +87,6 @@
         const SCALE = 150;
         const NUM_STEPS = 10;
         const EPS = 1e-12;
-        const P = 4; // number of sides of polygon
-        const Q = 6; // number of polygons that meet at each vertex
-
-        // Connection rules for the tessellation with Schlafli symbol {p,q}, empirically determined. See https://arxiv.org/pdf/2111.12040.pdf.
-        const CONNECTION_RULES = {
-            '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
-            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
-        };
 
         // Note these expressions are only valid for P=4
         const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
@@ -93,38 +140,35 @@
             }
         }
 
-        function drawEverything(ctx) {
-            const queue = [[0, 0, 0, WIDTH / 2, HEIGHT / 2, 0]];
-            let count = 0;
-            let d = new Date();
-            while (queue.length > 0) {
-                if (count++ >= 10000) {
-                    alert('Too many polygons');
-                    break;
-                }
-                const [r, θ, heading, prev_x, prev_y, state] = queue.pop();
-                const [x, y] = from_polar(r, θ);
-                if (isNaN(x) || isNaN(y) || x < 0 || x > WIDTH || y < 0 || y > HEIGHT) {
-                    continue;
-                }
-                drawStraightLine(ctx, prev_x, prev_y, x, y);
+        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ) {
+            function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex) {
+                const { state, neighbors } = map[nodeIndex];
                 drawPolygon(ctx, r, θ, heading);
                 for (let i = 0; i < P; i++) {
-                    const newState = CONNECTION_RULES[`{${P},${Q}}`][state][i];
-                    if (typeof(newState) === 'number') {
-                        queue.push([...move(r, θ, D, heading + (2 * i / P + 1) * Math.PI), x, y, newState]);
+                    if (typeof(CONNECTION_RULES[state][i]) === 'number' && neighbors[i] !== undefined) {
+                        const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
+                        const [new_r, new_θ, newHeading] = move(r, θ, D, heading + (2 * (i - returnNeighborIndex) / P + 1) * Math.PI);
+                        drawStraightLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ));
+                        drawMapHelper(newNodeIndex, new_r, new_θ, newHeading, newReturnNeighborIndex);
                     }
                 }
             }
-            console.log(count, new Date() - d);
+
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
+            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, 0, P);
         }
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        drawEverything(ctx);
+
+        const map = generateMap(4);
+        console.log('map length:', map.length);
+
+        console.time('draw map');
+        drawMap(ctx, map, 0, 2, 0);
+        console.timeEnd('draw map');
     </script>
 </body>
 
