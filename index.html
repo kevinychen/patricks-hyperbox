@@ -19,6 +19,7 @@
         const CONNECTION_RULES = {
             '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
             '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
+            '{7,3}': [[1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 2, 'L', 'L']],
         }[`{${P},${Q}}`];
 
         function generateMap(maxDepth) {
@@ -34,6 +35,10 @@
                 if (depth === maxDepth || neighbors[neighborIndex] !== undefined) {
                     return;
                 }
+                // uncomment to make map asymmetric for testing purposes
+                // if (nodeIndex === 1) {
+                //     return;
+                // }
                 const nextState = CONNECTION_RULES[state][neighborIndex];
                 if (typeof (nextState) === 'number') {
                     const node = { state: nextState, depth: depth + 1, neighbors: new Array(P) };
@@ -66,49 +71,41 @@
 
         /* rendering */
 
-        function sinh(x) {
-            return (Math.exp(x) - Math.exp(-x)) / 2;
-        }
-
-        function cosh(x) {
-            return (Math.exp(x) + Math.exp(-x)) / 2;
-        }
-
-        function acosh(x) {
-            return Math.log(x + Math.sqrt(x * x - 1));
-        }
-
-        function asinh(x) {
-            return Math.log(x + Math.sqrt(x * x + 1));
-        }
+        sin = x => Math.sin(x);
+        cos = x => Math.cos(x);
+        acos = x => Math.acos(x);
+        sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
+        cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
+        asinh = x => Math.log(x + Math.sqrt(x * x + 1));
+        acosh = x => Math.log(x + Math.sqrt(x * x - 1));
 
         const WIDTH = 1200;
         const HEIGHT = 800;
-        const SCALE = 150;
+        const SCALE = 100;
         const NUM_STEPS = 10;
-        const EPS = 1e-12;
+        const ɛ = 1e-12;
+        const π = Math.PI;
 
-        // Note these expressions are only valid for P=4
-        const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
-        const K = 1 / acosh(COT * COT); // Gaussian curvature
-        const R = K * acosh(COT); // radius from center of polygon to vertex
-        const D = 2 * K * asinh(Math.sin(Math.PI / Q) * sinh(1 / (2 * K)) * Math.sqrt(2)); // distance between centers of adjacent polygons
+        // Scale Gaussian curvature K = 1
+        const D = acosh((cos(2 * π / Q) + 1) / (sin(π / P) * sin(π / P)) - 1); // distance between centers of adjacent polygons
+        const R = asinh(Math.sqrt((cosh(D) - 1) / (1 - cos(2 * π / Q)))); // distance from center of polygon to vertex
+        const S = acosh(cosh(R) * cosh(R) - sinh(R) * sinh(R) * cos(2 * π / P)); // distance between adjacent vertices
 
         function from_polar(r, θ) {
-            return [WIDTH / 2 + SCALE * r * Math.cos(θ), HEIGHT / 2 - SCALE * r * Math.sin(θ)];
+            return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
         }
 
         function move(start_r, start_θ, len, heading) {
             if (start_r === 0) {
                 return [len, heading, heading];
             }
-            const ϕ = (start_θ + Math.PI - heading) % (2 * Math.PI);
-            const crossProductSignum = ϕ < -Math.PI || (ϕ > 0 && ϕ < Math.PI) ? 1 : -1;
-            const r = K * acosh(cosh(len / K) * cosh(start_r / K) - sinh(len / K) * sinh(start_r / K) * Math.cos(ϕ));
-            const θ = Math.acos((cosh(r / K) * cosh(start_r / K) - cosh(len / K)) / (sinh(r / K) * sinh(start_r / K) * (1 + EPS)))
+            const ϕ = (start_θ + π - heading) % (2 * π);
+            const crossProductSignum = ϕ < -π || (ϕ > 0 && ϕ < π) ? 1 : -1;
+            const r = acosh(cosh(len) * cosh(start_r) - sinh(len) * sinh(start_r) * cos(ϕ));
+            const θ = acos((cosh(r) * cosh(start_r) - cosh(len)) / (sinh(r) * sinh(start_r) * (1 + ɛ)))
                 * crossProductSignum
                 + start_θ;
-            const newHeading = Math.acos((cosh(r / K) * cosh(len / K) - cosh(start_r / K)) / (sinh(r / K) * sinh(len / K) * (1 + EPS)))
+            const newHeading = acos((cosh(r) * cosh(len) - cosh(start_r)) / (sinh(r) * sinh(len) * (1 + ɛ)))
                 * crossProductSignum
                 + θ;
             return [r, θ, newHeading];
@@ -135,12 +132,14 @@
 
         function drawPolygon(ctx, center_r, center_θ, heading) {
             for (let i = 0; i < P; i++) {
-                const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * Math.PI * (i + .5) / P);
-                drawLine(ctx, r, θ, 1, localHeading + Math.PI - Math.PI / Q);
+                const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * π * (i + .5) / P);
+                drawLine(ctx, r, θ, S, localHeading + π - π / Q);
             }
         }
 
-        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ, parentDir) {
+        // Draw the map, where the startNode is at polar coordinates (r, θ) (with the origin at the middle of the screen).
+        // startNodeHeading is the angle of the first neighbor of startNode, counterclockwise from east.
+        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ, startNodeHeading) {
             function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex, prevNodeIndex) {
                 const { state, neighbors } = map[nodeIndex];
                 drawPolygon(ctx, r, θ, heading);
@@ -148,51 +147,56 @@
                     if (neighbors[i] !== undefined && !'LR'.includes(CONNECTION_RULES[state][i])) {
                         const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
                         if (newNodeIndex !== prevNodeIndex) {
-                            const [new_r, new_θ, newHeading] = move(r, θ, D, heading + (2 * Math.PI * ((i - returnNeighborIndex) / P + .5)));
+                            const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / P);
                             drawStraightLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ));
-                            drawMapHelper(newNodeIndex, new_r, new_θ, newHeading, newReturnNeighborIndex, nodeIndex);
+                            drawMapHelper(newNodeIndex, new_r, new_θ, newHeading + π, newReturnNeighborIndex, nodeIndex);
                         }
                     }
                 }
             }
 
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
-            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, 2 * Math.PI * (parentDir / P + .5), P);
+            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, startNodeHeading, P);
         }
+
+        const map = generateMap(4);
+        console.log('map length:', map.length);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
-
-        const map = generateMap(4);
-        console.log('map length:', map.length);
+        drawMap(ctx, map, 0, 0, 0, 0);
 
         let currNodeIndex = 0, parentDir = 0;
         let animating = undefined;
 
-        drawMap(ctx, map, 0, 0, 0, 0);
-
         function animate() {
-            const { numSteps, dir } = animating;
+            const { numSteps, dir, neighbor } = animating;
             if (numSteps === NUM_STEPS) {
-                const { nodeIndex, returnNeighborIndex } = map[currNodeIndex].neighbors[(dir + P - parentDir) % P];
-                currNodeIndex = nodeIndex;
-                parentDir = (dir + P / 2 + P - returnNeighborIndex) % P;
+                currNodeIndex = neighbor.nodeIndex;
+                parentDir = (dir + P / 2 + P - neighbor.returnNeighborIndex) % P;
                 animating = undefined;
-                drawMap(ctx, map, currNodeIndex, 0, 0, parentDir);
+                drawMap(ctx, map, currNodeIndex, 0, 0, 2 * π * parentDir / P);
             } else {
                 animating.numSteps++;
-                drawMap(ctx, map, currNodeIndex, D * numSteps / NUM_STEPS, 2 * Math.PI * (dir / P + .5), parentDir);
+                drawMap(ctx, map, currNodeIndex, D * numSteps / NUM_STEPS, 2 * π * dir / P + π, 2 * π * parentDir / P);
                 setTimeout(animate, 20);
             }
         }
 
         document.addEventListener('keydown', e => {
-            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
-            if (dir !== undefined && animating === undefined && map[currNodeIndex].neighbors[(dir + P - parentDir) % P] !== undefined) {
-                animating = { numSteps: 0, dir };
-                animate();
+            let dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            if (dir !== undefined) {
+                if (parentDir % 1 === .5) {
+                    dir -= .5;
+                }
+                const neighbor = map[currNodeIndex].neighbors[(dir + P - parentDir) % P];
+                if (animating === undefined && neighbor !== undefined) {
+                    animating = { numSteps: 0, dir, neighbor };
+                    animate();
+                }
+                e.preventDefault();
             }
         });
     </script>
