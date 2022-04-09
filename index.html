@@ -35,6 +35,12 @@
         const P = 4; // number of sides of polygon
         const Q = 6; // number of polygons that meet at each vertex
 
+        // Connection rules for the tessellation with Schlafli symbol {p,q}, empirically determined. See https://arxiv.org/pdf/2111.12040.pdf.
+        const CONNECTION_RULES = {
+            '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
+            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
+        };
+
         // Note these expressions are only valid for P=4
         const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
         const K = 1 / acosh(COT * COT); // Gaussian curvature
@@ -61,7 +67,16 @@
             return [r, θ, newHeading];
         }
 
+        function drawStraightLine(ctx, x1, y1, x2, y2) {
+            ctx.strokeStyle = 'red';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
         function drawLine(ctx, start_r, start_θ, len, heading) {
+            ctx.strokeStyle = 'black';
             ctx.beginPath();
             ctx.moveTo(...from_polar(start_r, start_θ));
             for (let step = 1; step <= NUM_STEPS; step++) {
@@ -79,8 +94,7 @@
         }
 
         function drawEverything(ctx) {
-            const centers = [];
-            const queue = [[0, 0, 0]];
+            const queue = [[0, 0, 0, WIDTH / 2, HEIGHT / 2, 0]];
             let count = 0;
             let d = new Date();
             while (queue.length > 0) {
@@ -88,18 +102,18 @@
                     alert('Too many polygons');
                     break;
                 }
-                const [r, θ, heading] = queue.pop();
+                const [r, θ, heading, prev_x, prev_y, state] = queue.pop();
                 const [x, y] = from_polar(r, θ);
                 if (isNaN(x) || isNaN(y) || x < 0 || x > WIDTH || y < 0 || y > HEIGHT) {
                     continue;
                 }
-                if (centers.some(([center_x, center_y]) => Math.hypot(x - center_x, y - center_y) <= 10)) {
-                    continue;
-                }
+                drawStraightLine(ctx, prev_x, prev_y, x, y);
                 drawPolygon(ctx, r, θ, heading);
-                centers.push([x, y]);
                 for (let i = 0; i < P; i++) {
-                    queue.push(move(r, θ, D, heading + 2 * Math.PI * i / P));
+                    const newState = CONNECTION_RULES[`{${P},${Q}}`][state][i];
+                    if (typeof(newState) === 'number') {
+                        queue.push([...move(r, θ, D, heading + (2 * i / P + 1) * Math.PI), x, y, newState]);
+                    }
                 }
             }
             console.log(count, new Date() - d);
