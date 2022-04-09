@@ -140,22 +140,24 @@
             }
         }
 
-        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ) {
-            function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex) {
+        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ, parentDir) {
+            function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex, prevNodeIndex) {
                 const { state, neighbors } = map[nodeIndex];
                 drawPolygon(ctx, r, θ, heading);
                 for (let i = 0; i < P; i++) {
-                    if (typeof(CONNECTION_RULES[state][i]) === 'number' && neighbors[i] !== undefined) {
+                    if (neighbors[i] !== undefined && !'LR'.includes(CONNECTION_RULES[state][i])) {
                         const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
-                        const [new_r, new_θ, newHeading] = move(r, θ, D, heading + (2 * (i - returnNeighborIndex) / P + 1) * Math.PI);
-                        drawStraightLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ));
-                        drawMapHelper(newNodeIndex, new_r, new_θ, newHeading, newReturnNeighborIndex);
+                        if (newNodeIndex !== prevNodeIndex) {
+                            const [new_r, new_θ, newHeading] = move(r, θ, D, heading + (2 * Math.PI * ((i - returnNeighborIndex) / P + .5)));
+                            drawStraightLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ));
+                            drawMapHelper(newNodeIndex, new_r, new_θ, newHeading, newReturnNeighborIndex, nodeIndex);
+                        }
                     }
                 }
             }
 
             ctx.clearRect(0, 0, WIDTH, HEIGHT);
-            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, 0, P);
+            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, 2 * Math.PI * (parentDir / P + .5), P);
         }
 
         const canvas = document.getElementById('canvas');
@@ -166,9 +168,33 @@
         const map = generateMap(4);
         console.log('map length:', map.length);
 
-        console.time('draw map');
-        drawMap(ctx, map, 0, 2, 0);
-        console.timeEnd('draw map');
+        let currNodeIndex = 0, parentDir = 0;
+        let animating = undefined;
+
+        drawMap(ctx, map, 0, 0, 0, 0);
+
+        function animate() {
+            const { numSteps, dir } = animating;
+            if (numSteps === NUM_STEPS) {
+                const { nodeIndex, returnNeighborIndex } = map[currNodeIndex].neighbors[(dir + P - parentDir) % P];
+                currNodeIndex = nodeIndex;
+                parentDir = (dir + P / 2 + P - returnNeighborIndex) % P;
+                animating = undefined;
+                drawMap(ctx, map, currNodeIndex, 0, 0, parentDir);
+            } else {
+                animating.numSteps++;
+                drawMap(ctx, map, currNodeIndex, D * numSteps / NUM_STEPS, 2 * Math.PI * (dir / P + .5), parentDir);
+                setTimeout(animate, 20);
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            if (dir !== undefined && animating === undefined && map[currNodeIndex].neighbors[(dir + P - parentDir) % P] !== undefined) {
+                animating = { numSteps: 0, dir };
+                animate();
+            }
+        });
     </script>
 </body>
 
