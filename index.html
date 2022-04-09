@@ -29,10 +29,11 @@
 
         const WIDTH = 1200;
         const HEIGHT = 800;
-        const SCALE = 100;
+        const SCALE = 150;
         const NUM_STEPS = 10;
+        const EPS = 1e-12;
         const P = 4; // number of sides of polygon
-        const Q = 5; // number of polygons that meet at each vertex
+        const Q = 6; // number of polygons that meet at each vertex
 
         // Note these expressions are only valid for P=4
         const COT = Math.cos(Math.PI / Q) / Math.sin(Math.PI / Q);
@@ -51,10 +52,10 @@
             const ϕ = (start_θ + Math.PI - heading) % (2 * Math.PI);
             const crossProductSignum = ϕ < -Math.PI || (ϕ > 0 && ϕ < Math.PI) ? 1 : -1;
             const r = K * acosh(cosh(len / K) * cosh(start_r / K) - sinh(len / K) * sinh(start_r / K) * Math.cos(ϕ));
-            const θ = Math.acos((cosh(r / K) * cosh(start_r / K) - cosh(len / K)) / (sinh(r / K) * sinh(start_r / K)))
+            const θ = Math.acos((cosh(r / K) * cosh(start_r / K) - cosh(len / K)) / (sinh(r / K) * sinh(start_r / K) * (1 + EPS)))
                 * crossProductSignum
                 + start_θ;
-            const newHeading = Math.acos((cosh(r / K) * cosh(len / K) - cosh(start_r / K)) / (sinh(r / K) * sinh(len / K)))
+            const newHeading = Math.acos((cosh(r / K) * cosh(len / K) - cosh(start_r / K)) / (sinh(r / K) * sinh(len / K) * (1 + EPS)))
                 * crossProductSignum
                 + θ;
             return [r, θ, newHeading];
@@ -70,12 +71,38 @@
             ctx.stroke();
         }
 
-        function drawPolygon(ctx, center_r, center_θ) {
+        function drawPolygon(ctx, center_r, center_θ, heading) {
             for (let i = 0; i < P; i++) {
-                const heading = 2 * Math.PI * (i + .5) / P;
-                const [r, θ, newHeading] = move(center_r, center_θ, R, heading);
-                drawLine(ctx, r, θ, 1, newHeading + Math.PI - Math.PI / Q);
+                const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * Math.PI * (i + .5) / P);
+                drawLine(ctx, r, θ, 1, localHeading + Math.PI - Math.PI / Q);
             }
+        }
+
+        function drawEverything(ctx) {
+            const centers = [];
+            const queue = [[0, 0, 0]];
+            let count = 0;
+            let d = new Date();
+            while (queue.length > 0) {
+                if (count++ >= 10000) {
+                    alert('Too many polygons');
+                    break;
+                }
+                const [r, θ, heading] = queue.pop();
+                const [x, y] = from_polar(r, θ);
+                if (isNaN(x) || isNaN(y) || x < 0 || x > WIDTH || y < 0 || y > HEIGHT) {
+                    continue;
+                }
+                if (centers.some(([center_x, center_y]) => Math.hypot(x - center_x, y - center_y) <= 10)) {
+                    continue;
+                }
+                drawPolygon(ctx, r, θ, heading);
+                centers.push([x, y]);
+                for (let i = 0; i < P; i++) {
+                    queue.push(move(r, θ, D, heading + 2 * Math.PI * i / P));
+                }
+            }
+            console.log(count, new Date() - d);
         }
 
         const canvas = document.getElementById('canvas');
@@ -83,10 +110,7 @@
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        let [r, θ] = [0, 0];
-        drawPolygon(ctx, r, θ);
-        [r, θ, heading] = move(r, θ, D, Math.PI / 2);
-        drawPolygon(ctx, r, θ);
+        drawEverything(ctx);
     </script>
 </body>
 
