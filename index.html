@@ -72,6 +72,18 @@
             return map;
         }
 
+        function getNode(map, path) {
+            let node = map[0];
+            for (let neighborIndex of path) {
+                const neighbor = node.neighbors[neighborIndex];
+                if (neighbor === undefined) {
+                    return undefined;
+                }
+                node = map[neighbor.nodeIndex];
+            }
+            return node;
+        }
+
         /* rendering */
 
         sin = x => Math.sin(x);
@@ -114,44 +126,40 @@
             return [r, θ, newHeading];
         }
 
-        function drawStraightLine(ctx, x1, y1, x2, y2) {
-            ctx.strokeStyle = 'red';
+        function drawLine(ctx, x1, y1, x2, y2, color) {
+            ctx.strokeStyle = color;
             ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
             ctx.stroke();
         }
 
-        function drawLine(ctx, start_r, start_θ, len, heading) {
+        function drawPolygon(ctx, center_r, center_θ, heading, color) {
             ctx.strokeStyle = 'black';
+            ctx.fillStyle = color || 'transparent';
             ctx.beginPath();
-            ctx.moveTo(...from_polar(start_r, start_θ));
-            for (let step = 1; step <= NUM_STEPS; step++) {
-                const [r, θ, newHeading] = move(start_r, start_θ, len * step / NUM_STEPS, heading);
-                ctx.lineTo(...from_polar(r, θ));
-            }
-            ctx.stroke();
-        }
-
-        function drawPolygon(ctx, center_r, center_θ, heading) {
             for (let i = 0; i < P; i++) {
                 const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * π * (i + .5) / P);
-                drawLine(ctx, r, θ, S, localHeading + π - π / Q);
+                for (let step = 0; step <= NUM_STEPS; step++) {
+                    ctx.lineTo(...from_polar(...move(r, θ, S * step / NUM_STEPS, localHeading + π - π / Q)));
+                }
             }
+            ctx.stroke();
+            ctx.fill();
         }
 
         // Draw the map, where the startNode is at polar coordinates (r, θ) (with the origin at the middle of the screen).
         // startNodeHeading is the angle of the first neighbor of startNode, counterclockwise from east.
         function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ, startNodeHeading) {
             function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex, prevNodeIndex) {
-                const { state, neighbors } = map[nodeIndex];
-                drawPolygon(ctx, r, θ, heading);
+                const { state, neighbors, color } = map[nodeIndex];
+                drawPolygon(ctx, r, θ, heading, color);
                 for (let i = 0; i < P; i++) {
                     if (neighbors[i] !== undefined && !'LR'.includes(CONNECTION_RULES[state][i])) {
                         const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
                         if (newNodeIndex !== prevNodeIndex) {
                             const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / P);
-                            drawStraightLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ));
+                            drawLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ), 'red');
                             drawMapHelper(newNodeIndex, new_r, new_θ, newHeading + π, newReturnNeighborIndex, nodeIndex);
                         }
                     }
@@ -163,6 +171,7 @@
         }
 
         const map = generateMap(4);
+        getNode(map, [0, 2, 2]).color = 'blue';
         console.log('map length:', map.length);
 
         const canvas = document.getElementById('canvas');
