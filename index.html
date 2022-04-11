@@ -18,6 +18,7 @@
         acos = x => Math.acos(x);
         sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
         cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
+        tanh = x => sinh(x) / cosh(x);
         asinh = x => Math.log(x + Math.sqrt(x * x + 1));
         acosh = x => Math.log(x + Math.sqrt(x * x - 1));
 
@@ -54,7 +55,10 @@
             '{8,3}': [[1, 1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 1, 2, 'L', 'L']],
         }[`{${P},${Q}}`];
 
-        function generateMap(max_r) {
+        // Returns a list of all nodes in the hyperbolic tessellation of P-sided polygons with Q meeting at each vertex.
+        // Nodes are only returned if the center is at most max_r from the origin,
+        //   and bounded by P (hyperbolic) lines, where each line is minRadius away from the start node in each of the P starting directions.
+        function generateMap(max_r, minRadius) {
             // An array of all polygon nodes. Pointers to nodes are indices into this array. The heading is the heading to the parent node.
             const map = [{ state: 0, neighbors: new Array(P), r: 0, θ: 0, heading: 0, color: undefined }];
 
@@ -104,6 +108,30 @@
             for (let i = 0; i < P; i++) {
                 generateMapHelper(0, i);
             }
+
+            for (let nodeIndex = 0; nodeIndex < map.length; ) {
+                const { neighbors, r, θ } = map[nodeIndex];
+                if (tanh(r) * Math.max(Math.abs(cos(θ)), Math.abs(sin(θ))) < tanh((minRadius + .5) * D)) {
+                    nodeIndex++;
+                    continue;
+                }
+                for (const neighbor of neighbors) {
+                    if (neighbor !== undefined) {
+                        map[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex] = undefined;
+                    }
+                }
+                const lastNode = map.pop();
+                if (nodeIndex === map.length) {
+                    continue;
+                }
+                for (const neighbor of lastNode.neighbors) {
+                    if (neighbor !== undefined) {
+                        map[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex].nodeIndex = nodeIndex;
+                    }
+                }
+                map[nodeIndex] = lastNode;
+            }
+
             return map;
         }
 
@@ -132,7 +160,10 @@
         const S = acosh(cosh(R) * cosh(R) - sinh(R) * sinh(R) * cos(2 * π / P)); // distance between adjacent vertices
 
         function from_polar(r, θ) {
+            // Equidistant projection
             return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
+            // Beltrami-Klein projection
+            // return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
         }
 
         function drawLine(ctx, x1, y1, x2, y2, color) {
@@ -179,8 +210,8 @@
             drawMapHelper(startNodeIndex, startNode_r, startNode_θ, startNodeHeading, P);
         }
 
-        const map = generateMap(4);
-        getNode(map, [0, 2, 2]).color = 'blue';
+        const map = generateMap(6, 1);
+        // getNode(map, [0, 2, 2]).color = 'blue';
         console.log('map length:', map.length);
 
         const canvas = document.getElementById('canvas');
