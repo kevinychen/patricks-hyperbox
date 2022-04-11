@@ -11,20 +11,52 @@
         }
     </style>
     <script>
+        const ɛ = 1e-12;
+        const π = Math.PI;
+        sin = x => Math.sin(x);
+        cos = x => Math.cos(x);
+        acos = x => Math.acos(x);
+        sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
+        cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
+        asinh = x => Math.log(x + Math.sqrt(x * x + 1));
+        acosh = x => Math.log(x + Math.sqrt(x * x - 1));
+
         const P = 4; // number of sides of polygon
         const Q = 6; // number of polygons that meet at each vertex
+
+        // Translates the point (r, θ) a distance d in the given heading, and returns the new point and (local) heading.
+        // A heading is defined as: if you move radially outwards at angle θ from the origin, your heading is always θ.
+        //
+        // To derive the implementation, draw a triangle between the origin, source, and destination points, and use the Hyperbolic Law of Cosines.
+        // This is a bit ad-hoc compared to the standard approach with rotation matrices, but is cheaper and requires less code.
+        function move(start_r, start_θ, d, heading) {
+            if (start_r === 0) {
+                return [d, heading, heading];
+            }
+            const ϕ = (start_θ + π - heading) % (2 * π);
+            const crossProductSignum = ϕ < -π || (ϕ > 0 && ϕ < π) ? 1 : -1;
+            const r = acosh(cosh(d) * cosh(start_r) - sinh(d) * sinh(start_r) * cos(ϕ));
+            const θ = acos((cosh(r) * cosh(start_r) - cosh(d)) / (sinh(r) * sinh(start_r) * (1 + ɛ)))
+                * crossProductSignum
+                + start_θ;
+            const newHeading = acos((cosh(r) * cosh(d) - cosh(start_r)) / (sinh(r) * sinh(d) * (1 + ɛ)))
+                * crossProductSignum
+                + θ;
+            return [r, θ, newHeading];
+        }
 
         // Connection rules for the tessellation with Schlafli symbol {p,q}, in counterclockwise order.
         // See Section 2 of "Generating Tree Structures for Hyperbolic Tessellations" by D Celińska-Kopczyńska, https://arxiv.org/pdf/2111.12040.pdf.
         const CONNECTION_RULES = {
             '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
-            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 1, 'L']],
+            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 2, 'L']],
             '{7,3}': [[1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 2, 'L', 'L']],
             '{8,3}': [[1, 1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 1, 2, 'L', 'L']],
         }[`{${P},${Q}}`];
 
-        function generateMap(maxDepth) {
-            const map = [{ state: 0, depth: 0, neighbors: new Array(P) }];
+        function generateMap(max_r) {
+            // An array of all polygon nodes. Pointers to nodes are indices into this array. The heading is the heading to the parent node.
+            const map = [{ state: 0, neighbors: new Array(P), r: 0, θ: 0, heading: 0, color: undefined }];
 
             function connect(nodeIndex1, returnNeighborIndex1, nodeIndex2, returnNeighborIndex2) {
                 map[nodeIndex1].neighbors[returnNeighborIndex1] = { nodeIndex: nodeIndex2, returnNeighborIndex: returnNeighborIndex2 };
@@ -32,7 +64,7 @@
             }
 
             function generateMapHelper(nodeIndex, neighborIndex) {
-                const { state, depth, neighbors } = map[nodeIndex];
+                const { state, neighbors, r, θ, heading } = map[nodeIndex];
                 if (neighbors[neighborIndex] !== undefined) {
                     return;
                 }
@@ -41,15 +73,18 @@
                 //     return;
                 // }
                 const nextState = CONNECTION_RULES[state][neighborIndex];
-                if (typeof (nextState) === 'number' && depth < maxDepth) {
-                    const node = { state: nextState, depth: depth + 1, neighbors: new Array(P) };
-                    const newNodeIndex = map.length;
-                    map.push(node);
-                    connect(nodeIndex, neighborIndex, newNodeIndex, 0);
-                    for (let i = 0; i < P; i++) {
-                        generateMapHelper(newNodeIndex, i);
+                if (typeof (nextState) === 'number') {
+                    const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * neighborIndex / P);
+                    const node = { state: nextState, neighbors: new Array(P), r: new_r, θ: new_θ, heading: newHeading + π, color: undefined };
+                    if (new_r <= max_r) {
+                        const newNodeIndex = map.length;
+                        map.push(node);
+                        connect(nodeIndex, neighborIndex, newNodeIndex, 0);
+                        for (let i = 0; i < P; i++) {
+                            generateMapHelper(newNodeIndex, i);
+                        }
+                        return;
                     }
-                    return;
                 }
                 const d = { 'L': 1, 'R': P - 1 }[nextState];
                 if (d !== undefined) {
@@ -86,20 +121,10 @@
 
         /* rendering */
 
-        sin = x => Math.sin(x);
-        cos = x => Math.cos(x);
-        acos = x => Math.acos(x);
-        sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
-        cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
-        asinh = x => Math.log(x + Math.sqrt(x * x + 1));
-        acosh = x => Math.log(x + Math.sqrt(x * x - 1));
-
         const WIDTH = 1200;
         const HEIGHT = 800;
         const SCALE = 100;
         const NUM_STEPS = 10;
-        const ɛ = 1e-12;
-        const π = Math.PI;
 
         // Scale Gaussian curvature K = 1
         const D = acosh((cos(2 * π / Q) + 1) / (sin(π / P) * sin(π / P)) - 1); // distance between centers of adjacent polygons
@@ -108,22 +133,6 @@
 
         function from_polar(r, θ) {
             return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
-        }
-
-        function move(start_r, start_θ, len, heading) {
-            if (start_r === 0) {
-                return [len, heading, heading];
-            }
-            const ϕ = (start_θ + π - heading) % (2 * π);
-            const crossProductSignum = ϕ < -π || (ϕ > 0 && ϕ < π) ? 1 : -1;
-            const r = acosh(cosh(len) * cosh(start_r) - sinh(len) * sinh(start_r) * cos(ϕ));
-            const θ = acos((cosh(r) * cosh(start_r) - cosh(len)) / (sinh(r) * sinh(start_r) * (1 + ɛ)))
-                * crossProductSignum
-                + start_θ;
-            const newHeading = acos((cosh(r) * cosh(len) - cosh(start_r)) / (sinh(r) * sinh(len) * (1 + ɛ)))
-                * crossProductSignum
-                + θ;
-            return [r, θ, newHeading];
         }
 
         function drawLine(ctx, x1, y1, x2, y2, color) {
