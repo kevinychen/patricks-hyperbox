@@ -1,7 +1,6 @@
 <html>
 
-<body>
-    <canvas id="canvas"></canvas>
+<head>
     <style>
         canvas {
             width: 1200px;
@@ -10,154 +9,22 @@
             margin: 0 auto;
         }
     </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script src="./tessellations.js"></script>
     <script>
-        const ɛ = 1e-12;
-        const π = Math.PI;
-        sin = x => Math.sin(x);
-        cos = x => Math.cos(x);
-        acos = x => Math.acos(x);
-        sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
-        cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
-        tanh = x => sinh(x) / cosh(x);
-        asinh = x => Math.log(x + Math.sqrt(x * x + 1));
-        acosh = x => Math.log(x + Math.sqrt(x * x - 1));
-
-        const P = 4; // number of sides of polygon
-        const Q = 6; // number of polygons that meet at each vertex
-
-        // Translates the point (r, θ) a distance d in the given heading, and returns the new point and (local) heading.
-        // A heading is defined as: if you move radially outwards at angle θ from the origin, your heading is always θ.
-        //
-        // To derive the implementation, draw a triangle between the origin, source, and destination points, and use the Hyperbolic Law of Cosines.
-        // This is a bit ad-hoc compared to the standard approach with rotation matrices, but is cheaper and requires less code.
-        function move(start_r, start_θ, d, heading) {
-            if (start_r === 0) {
-                return [d, heading, heading];
-            }
-            const ϕ = (start_θ + π - heading) % (2 * π);
-            const crossProductSignum = ϕ < -π || (ϕ > 0 && ϕ < π) ? 1 : -1;
-            const r = acosh(cosh(d) * cosh(start_r) - sinh(d) * sinh(start_r) * cos(ϕ));
-            const θ = acos((cosh(r) * cosh(start_r) - cosh(d)) / (sinh(r) * sinh(start_r) * (1 + ɛ)))
-                * crossProductSignum
-                + start_θ;
-            const newHeading = acos((cosh(r) * cosh(d) - cosh(start_r)) / (sinh(r) * sinh(d) * (1 + ɛ)))
-                * crossProductSignum
-                + θ;
-            return [r, θ, newHeading];
-        }
-
-        // Connection rules for the tessellation with Schlafli symbol {p,q}, in counterclockwise order.
-        // See Section 2 of "Generating Tree Structures for Hyperbolic Tessellations" by D Celińska-Kopczyńska, https://arxiv.org/pdf/2111.12040.pdf.
-        const CONNECTION_RULES = {
-            '{4,5}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 'L'], ['P', 'R', 3, 2]],
-            '{4,6}': [[1, 1, 1, 1], ['P', 3, 1, 2], ['P', 3, 1, 4], ['P', 'R', 1, 2], ['P', 3, 2, 'L']],
-            '{7,3}': [[1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 2, 'L', 'L']],
-            '{8,3}': [[1, 1, 1, 1, 1, 1, 1, 1], ['P', 'R', 'R', 1, 1, 1, 2, 'L'], ['P', 'R', 'R', 1, 1, 2, 'L', 'L']],
-        }[`{${P},${Q}}`];
-
-        // Returns a list of all nodes in the hyperbolic tessellation of P-sided polygons with Q meeting at each vertex.
-        // Nodes are only returned if the center is at most max_r from the origin,
-        //   and bounded by P (hyperbolic) lines, where each line is minRadius away from the start node in each of the P starting directions.
-        function generateMap(max_r, minRadius) {
-            // An array of all polygon nodes. Pointers to nodes are indices into this array. The heading is the heading to the parent node.
-            const map = [{ state: 0, neighbors: new Array(P), r: 0, θ: 0, heading: 0, color: undefined }];
-
-            function connect(nodeIndex1, returnNeighborIndex1, nodeIndex2, returnNeighborIndex2) {
-                map[nodeIndex1].neighbors[returnNeighborIndex1] = { nodeIndex: nodeIndex2, returnNeighborIndex: returnNeighborIndex2 };
-                map[nodeIndex2].neighbors[returnNeighborIndex2] = { nodeIndex: nodeIndex1, returnNeighborIndex: returnNeighborIndex1 };
-            }
-
-            function generateMapHelper(nodeIndex, neighborIndex) {
-                const { state, neighbors, r, θ, heading } = map[nodeIndex];
-                if (neighbors[neighborIndex] !== undefined) {
-                    return;
-                }
-                // uncomment to make map asymmetric for testing purposes
-                // if (nodeIndex === 1) {
-                //     return;
-                // }
-                const nextState = CONNECTION_RULES[state][neighborIndex];
-                if (typeof (nextState) === 'number') {
-                    const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * neighborIndex / P);
-                    const node = { state: nextState, neighbors: new Array(P), r: new_r, θ: new_θ, heading: newHeading + π, color: undefined };
-                    if (new_r <= max_r) {
-                        const newNodeIndex = map.length;
-                        map.push(node);
-                        connect(nodeIndex, neighborIndex, newNodeIndex, 0);
-                        for (let i = 0; i < P; i++) {
-                            generateMapHelper(newNodeIndex, i);
-                        }
-                        return;
-                    }
-                }
-                const d = { 'L': 1, 'R': P - 1 }[nextState];
-                if (d !== undefined) {
-                    let edge = { nodeIndex, returnNeighborIndex: neighborIndex };
-                    for (let k = 0; k < Q - 1; k++) {
-                        const neighborIndex = (edge.returnNeighborIndex + d) % P;
-                        generateMapHelper(edge.nodeIndex, neighborIndex);
-                        edge = map[edge.nodeIndex].neighbors[neighborIndex];
-                        if (edge === undefined) {
-                            return;
-                        }
-                    }
-                    connect(nodeIndex, neighborIndex, edge.nodeIndex, (edge.returnNeighborIndex + d) % P);
-                }
-            }
-
-            for (let i = 0; i < P; i++) {
-                generateMapHelper(0, i);
-            }
-
-            for (let nodeIndex = 0; nodeIndex < map.length; ) {
-                const { neighbors, r, θ } = map[nodeIndex];
-                if (tanh(r) * Math.max(Math.abs(cos(θ)), Math.abs(sin(θ))) < tanh((minRadius + .5) * D)) {
-                    nodeIndex++;
-                    continue;
-                }
-                for (const neighbor of neighbors) {
-                    if (neighbor !== undefined) {
-                        map[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex] = undefined;
-                    }
-                }
-                const lastNode = map.pop();
-                if (nodeIndex === map.length) {
-                    continue;
-                }
-                for (const neighbor of lastNode.neighbors) {
-                    if (neighbor !== undefined) {
-                        map[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex].nodeIndex = nodeIndex;
-                    }
-                }
-                map[nodeIndex] = lastNode;
-            }
-
-            return map;
-        }
-
-        function getNode(map, path) {
-            let node = map[0];
-            for (let neighborIndex of path) {
-                const neighbor = node.neighbors[neighborIndex];
-                if (neighbor === undefined) {
-                    return undefined;
-                }
-                node = map[neighbor.nodeIndex];
-            }
-            return node;
-        }
-
-        /* rendering */
-
         const WIDTH = 1200;
         const HEIGHT = 800;
         const SCALE = 100;
         const NUM_STEPS = 10;
 
-        // Scale Gaussian curvature K = 1
+        const P = 4, Q = 6;
         const D = acosh((cos(2 * π / Q) + 1) / (sin(π / P) * sin(π / P)) - 1); // distance between centers of adjacent polygons
         const R = asinh(Math.sqrt((cosh(D) - 1) / (1 - cos(2 * π / Q)))); // distance from center of polygon to vertex
         const S = acosh(cosh(R) * cosh(R) - sinh(R) * sinh(R) * cos(2 * π / P)); // distance between adjacent vertices
+
 
         function from_polar(r, θ) {
             // Equidistant projection
@@ -195,7 +62,7 @@
                 const { state, neighbors, color } = map[nodeIndex];
                 drawPolygon(ctx, r, θ, heading, color);
                 for (let i = 0; i < P; i++) {
-                    if (neighbors[i] !== undefined && !'LR'.includes(CONNECTION_RULES[state][i])) {
+                    if (neighbors[i]?.nodeIndex !== undefined && !'LR'.includes(CONNECTION_RULES[`{${P},${Q}}`][state][i])) {
                         const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
                         if (newNodeIndex !== prevNodeIndex) {
                             const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / P);
@@ -210,8 +77,7 @@
             drawMapHelper(startNodeIndex, startNode_r, startNode_θ, startNodeHeading, P);
         }
 
-        const map = generateMap(6, 1);
-        // getNode(map, [0, 2, 2]).color = 'blue';
+        const map = getBoundedTessellation(P, Q, 6, 1);
         console.log('map length:', map.length);
 
         const canvas = document.getElementById('canvas');
