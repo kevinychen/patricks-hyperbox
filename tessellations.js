@@ -14,6 +14,23 @@ asinh = x => Math.log(x + Math.sqrt(x * x + 1));
 acosh = x => Math.log(x + Math.sqrt(x * x - 1));
 
 /*
+ * Returns relevant lengths for the tessellation with Schlafli symbol {p,q}
+ * (p-sided polygons, q meeting at each vertex).
+ */
+function getParameters(p, q) {
+    // distance between centers of adjacent polygons
+    const D = acosh((cos(2 * π / q) + 1) / (sin(π / p) * sin(π / p)) - 1);
+
+    // distance from center of polygon to vertex
+    const R = asinh(Math.sqrt((cosh(D) - 1) / (1 - cos(2 * π / q))));
+
+    // distance between adjacent vertices
+    const S = acosh(cosh(R) * cosh(R) - sinh(R) * sinh(R) * cos(2 * π / p));
+
+    return { D, R, S };
+}
+
+/*
  * Translates the point (r, θ) in hyperbolic space (curvature -1) a distance d in the given heading, and returns the new point and (local) heading.
  * A heading is defined as: if you move radially outwards at angle θ from the origin, your heading is always θ.
  *
@@ -37,7 +54,7 @@ function move(r, θ, d, heading) {
 }
 
 /*
- * In the tree structure for a tessellation with Schlafli symbol {p,q} (p-sided polygons, q meeting at each vertex), each node/polygon has a "state".
+ * In the tree structure for a tessellation with Schlafli symbol {p,q}, each node/polygon has a "state".
  * Nodes with the same state have the same subtree.
  * The j'th neighbor (starting from the parent and going counterclockwise) of a node with state i is a node with state CONNECTION_RULES[{p,q}][i][j].
  * 'P' stands for 'parent', and 'L' and 'R' stand for left and right siblings (without a direct edge connection) in the tree.
@@ -69,15 +86,14 @@ const CONNECTION_RULES = {
  *    (In other words, the center of the polygon lies in an appropriately sized regular polygon in the Beltrami-Klein projection.)
  */
 function getBoundedTessellation(p, q, max_r, minRadius) {
-    // distance between centers of adjacent polygons
-    const D = acosh((cos(2 * π / q) + 1) / (sin(π / p) * sin(π / p)) - 1);
+    const { D } = getParameters(p, q);
 
     // An array of all polygon nodes. Pointers to nodes are indices into this array. The heading is the heading to the parent node.
     const polygons = [{ state: 0, neighbors: new Array(p), r: 0, θ: 0, heading: 0 }];
 
-    function connect(nodeIndex1, returnNeighborIndex1, nodeIndex2, returnNeighborIndex2) {
-        polygons[nodeIndex1].neighbors[returnNeighborIndex1] = { nodeIndex: nodeIndex2, returnNeighborIndex: returnNeighborIndex2 };
-        polygons[nodeIndex2].neighbors[returnNeighborIndex2] = { nodeIndex: nodeIndex1, returnNeighborIndex: returnNeighborIndex1 };
+    function connect(nodeIndex1, returnNeighborIndex1, nodeIndex2, returnNeighborIndex2, isMainEdge) {
+        polygons[nodeIndex1].neighbors[returnNeighborIndex1] = { nodeIndex: nodeIndex2, returnNeighborIndex: returnNeighborIndex2, isMainEdge };
+        polygons[nodeIndex2].neighbors[returnNeighborIndex2] = { nodeIndex: nodeIndex1, returnNeighborIndex: returnNeighborIndex1, isMainEdge };
     }
 
     function helper(nodeIndex, neighborIndex) {
@@ -92,7 +108,7 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
             if (new_r <= max_r) {
                 const newNodeIndex = polygons.length;
                 polygons.push(node);
-                connect(nodeIndex, neighborIndex, newNodeIndex, 0);
+                connect(nodeIndex, neighborIndex, newNodeIndex, 0, true);
                 for (let i = 0; i < p; i++) {
                     helper(newNodeIndex, i);
                 }
@@ -110,7 +126,7 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
                     return;
                 }
             }
-            connect(nodeIndex, neighborIndex, edge.nodeIndex, (edge.returnNeighborIndex + d) % p);
+            connect(nodeIndex, neighborIndex, edge.nodeIndex, (edge.returnNeighborIndex + d) % p, false);
         }
     }
 

@@ -1,34 +1,42 @@
 
-function newBlock(p, q, max_r, minRadius, fillWithWalls, player) {
-    return getBoundedTessellation(p, q, max_r, minRadius)
-        .map(polygon => ({
-            nodes: [{
-                neighbors: polygon.neighbors,
-                facingNeighborIndex: 0,
-                contents: fillWithWalls ? 'Wall' : 'Empty',
-            }],
-            player,
-        }));
-}
-
-function getNode(block, path) {
-    let node = block.nodes[0];
+function getNodeIndex(block, path) {
+    let nodeIndex = 0;
     for (let neighborIndex of path) {
-        const neighbor = node.neighbors[neighborIndex];
+        const neighbor = block.nodes[nodeIndex].neighbors[neighborIndex];
         if (neighbor === undefined) {
             return undefined;
         }
-        node = block.nodes[neighbor.nodeIndex];
+        nodeIndex = neighbor.nodeIndex;
     }
-    return node;
+    return nodeIndex;
 }
 
-function addBlockToGameMap(gameMap, parentBlock, path, block) {
+function newGameMap(p) {
+    return { p, blocks: [], refs: [] };
+}
+
+function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, fillWithWalls, player) {
+    const block = {
+        q,
+        nodes: getBoundedTessellation(gameMap.p, q, max_r, minRadius)
+            .map(polygon => ({
+                neighbors: polygon.neighbors,
+                facingNeighborIndex: 0,
+                contents: {},
+                contentsType: fillWithWalls ? 'Wall' : 'Empty',
+            })),
+        parent: undefined,
+        player,
+    };
     const blockIndex = gameMap.blocks.length;
     gameMap.blocks.push(block);
     if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = blockIndex;
+        const nodeIndex = getNodeIndex(parentBlock, path);
+        block.parent = [gameMap.blocks.findIndex(block => block === parentBlock), nodeIndex];
+        parentBlock.nodes[nodeIndex].contents = blockIndex;
+        parentBlock.nodes[nodeIndex].contentsType = 'Block';
     }
+    return block;
 }
 
 function addRefToGameMap(gameMap, parentBlock, path, ref) {
@@ -36,12 +44,14 @@ function addRefToGameMap(gameMap, parentBlock, path, ref) {
     gameMap.refs.push(ref);
     if (parentBlock !== undefined) {
         getNode(parentBlock, path).contents = refIndex;
+        getNode(parentBlock, path).contentsType = 'Ref';
     }
 }
 
 function addWallToGameMap(gameMap, parentBlock, path) {
     if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = 'Wall';
+        getNode(parentBlock, path).contents = {};
+        getNode(parentBlock, path).contentsType = 'Wall';
     }
 }
 

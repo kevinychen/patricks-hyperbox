@@ -8,6 +8,7 @@ interface GameMap {
 
 interface Block {
 
+    q: number;
     nodes: Node[];
     parent: [BlockIndex, NodeIndex];
     player: boolean;
@@ -33,6 +34,7 @@ interface Neighbor {
 
     nodeIndex: number;
     returnNeighborIndex: number;
+    isMainEdge: boolean;
 }
 
 interface ExternalNeighbor {

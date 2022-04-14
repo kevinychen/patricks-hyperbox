@@ -14,77 +14,20 @@
 <body>
     <canvas id="canvas"></canvas>
     <script src="./tessellations.js"></script>
+    <script src="./map.js"></script>
+    <script src="./rendering.js"></script>
     <script>
-        const WIDTH = 1200;
-        const HEIGHT = 800;
-        const SCALE = 100;
-        const NUM_STEPS = 10;
-
         const P = 4, Q = 6;
-        const D = acosh((cos(2 * π / Q) + 1) / (sin(π / P) * sin(π / P)) - 1); // distance between centers of adjacent polygons
-        const R = asinh(Math.sqrt((cosh(D) - 1) / (1 - cos(2 * π / Q)))); // distance from center of polygon to vertex
-        const S = acosh(cosh(R) * cosh(R) - sinh(R) * sinh(R) * cos(2 * π / P)); // distance between adjacent vertices
-
-
-        function from_polar(r, θ) {
-            // Equidistant projection
-            return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
-            // Beltrami-Klein projection
-            // return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
-        }
-
-        function drawLine(ctx, x1, y1, x2, y2, color) {
-            ctx.strokeStyle = color;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-        }
-
-        function drawPolygon(ctx, center_r, center_θ, heading, color) {
-            ctx.strokeStyle = 'black';
-            ctx.fillStyle = color || 'transparent';
-            ctx.beginPath();
-            for (let i = 0; i < P; i++) {
-                const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * π * (i + .5) / P);
-                for (let step = 0; step <= NUM_STEPS; step++) {
-                    ctx.lineTo(...from_polar(...move(r, θ, S * step / NUM_STEPS, localHeading + π - π / Q)));
-                }
-            }
-            ctx.stroke();
-            ctx.fill();
-        }
-
-        // Draw the map, where the startNode is at polar coordinates (r, θ) (with the origin at the middle of the screen).
-        // startNodeHeading is the angle of the first neighbor of startNode, counterclockwise from east.
-        function drawMap(ctx, map, startNodeIndex, startNode_r, startNode_θ, startNodeHeading) {
-            function drawMapHelper(nodeIndex, r, θ, heading, returnNeighborIndex, prevNodeIndex) {
-                const { state, neighbors, color } = map[nodeIndex];
-                drawPolygon(ctx, r, θ, heading, color);
-                for (let i = 0; i < P; i++) {
-                    if (neighbors[i]?.nodeIndex !== undefined && !'LR'.includes(CONNECTION_RULES[`{${P},${Q}}`][state][i])) {
-                        const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
-                        if (newNodeIndex !== prevNodeIndex) {
-                            const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / P);
-                            drawLine(ctx, ...from_polar(r, θ), ...from_polar(new_r, new_θ), 'red');
-                            drawMapHelper(newNodeIndex, new_r, new_θ, newHeading + π, newReturnNeighborIndex, nodeIndex);
-                        }
-                    }
-                }
-            }
-
-            ctx.clearRect(0, 0, WIDTH, HEIGHT);
-            drawMapHelper(startNodeIndex, startNode_r, startNode_θ, startNodeHeading, P);
-        }
-
-        const map = getBoundedTessellation(P, Q, 6, 1);
-        console.log('map length:', map.length);
+        const gameMap = newGameMap(P);
+        console.log(gameMap);
+        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 2, 1, false, false);
+        const playerBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 1, 0, true, true);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
-        drawMap(ctx, map, 0, 0, 0, 0);
+        render(ctx, gameMap);
 
         let currNodeIndex = 0, parentDir = 0;
         let animating = undefined;
