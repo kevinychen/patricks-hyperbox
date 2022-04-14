@@ -10,7 +10,7 @@ interface Block {
 
     q: number;
     nodes: Node[];
-    parent: [BlockIndex, NodeIndex];
+    parentNode: NodeCoordinate;
     player: boolean;
 }
 
@@ -23,10 +23,13 @@ interface Ref {
 interface Node {
 
     neighbors: (Neighbor | ExternalNeighbor)[];
-    coordinate: [BlockIndex, NodeIndex];
+    coordinate: NodeCoordinate;
 
-    contents: BlockIndex | RefIndex | Floor | {};
-    contentsType: 'Block' | 'Ref' | 'Wall' | 'Floor' | 'Empty';
+    contents: { index: BlockIndex, type: 'Block' }
+        | { index: RefIndex, type: 'Ref' }
+        | { type: 'Wall' }
+        | { button: 'Button' | 'PlayerButton', type: 'Floor' }
+        | { type: 'Empty' }
     facingNeighborIndex: number;
 }
 
@@ -40,6 +43,12 @@ interface Neighbor {
 interface ExternalNeighbor {
 
     externalNeighborIndex: number;
+}
+
+interface NodeCoordinate {
+
+    blockIndex: BlockIndex;
+    nodeIndex: NodeIndex;
 }
 
 type BlockIndex = number;

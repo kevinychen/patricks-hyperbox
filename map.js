@@ -16,25 +16,24 @@ function newGameMap(p) {
 }
 
 function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, fillWithWalls, player) {
+    const blockIndex = gameMap.blocks.length;
     const block = {
         q,
         nodes: getBoundedTessellation(gameMap.p, q, max_r, minRadius)
-            .map(polygon => ({
+            .map((polygon, i) => ({
                 neighbors: polygon.neighbors,
+                coordinate: { blockIndex, nodeIndex: i },
+                contents: { type: fillWithWalls ? 'Wall' : 'Empty' },
                 facingNeighborIndex: 0,
-                contents: {},
-                contentsType: fillWithWalls ? 'Wall' : 'Empty',
             })),
-        parent: undefined,
+        parentNode: undefined,
         player,
     };
-    const blockIndex = gameMap.blocks.length;
     gameMap.blocks.push(block);
     if (parentBlock !== undefined) {
         const nodeIndex = getNodeIndex(parentBlock, path);
-        block.parent = [gameMap.blocks.findIndex(block => block === parentBlock), nodeIndex];
-        parentBlock.nodes[nodeIndex].contents = blockIndex;
-        parentBlock.nodes[nodeIndex].contentsType = 'Block';
+        block.parentNode = { blockIndex: gameMap.blocks.findIndex(block => block === parentBlock), nodeIndex };
+        parentBlock.nodes[nodeIndex].contents = { index: blockIndex, type: 'Block' };
     }
     return block;
 }
@@ -43,34 +42,32 @@ function addRefToGameMap(gameMap, parentBlock, path, ref) {
     const refIndex = gameMap.refs.length;
     gameMap.refs.push(ref);
     if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = refIndex;
-        getNode(parentBlock, path).contentsType = 'Ref';
+        getNode(parentBlock, path).contents = { index: refIndex, type: 'Ref' };
     }
 }
 
 function addWallToGameMap(gameMap, parentBlock, path) {
     if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = {};
-        getNode(parentBlock, path).contentsType = 'Wall';
+        getNode(parentBlock, path).contents = { type: 'Wall' };
     }
 }
 
 function moveContents(gameMap, startNode, newNode, returnNeighborIndex, nodeMoveMap) {
-    const { contents, contentsType } = newNode;
-    if (contentsType === 'Wall') {
+    const { contents } = newNode;
+    if (contents.type === 'Wall') {
         return 'CannotPush';
     }
-    if (contentsType === 'Floor' || contentsType === 'Empty') {
-        nodeMoveMap.set(startNode, newNode);
+    if (contents.type === 'Floor' || contents.type === 'Empty') {
+        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
         return 'CanPush';
     }
     if (newNode === startNode || nodeMoveMap.has(newNode)) {
-        nodeMoveMap.set(startNode, newNode);
+        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
         return 'Cycle';
     }
     const pushResult = pushContents(gameMap, newNode, returnNeighborIndex + gameMap.p / 2, nodeMoveMap);
     if (pushResult === 'CanPush') {
-        nodeMoveMap.set(startNode, newNode);
+        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
     }
     return pushResult;
 }
@@ -92,13 +89,26 @@ function pushContents(gameMap, startNode, neighborIndex, nodeMoveMap) {
 }
 
 function movePlayer(gameMap, dir) {
-    for (const block of gameMap.blocks) {
+    const { p, blocks } = gameMap;
+    for (const block of blocks) {
         if (block.player) {
-            const [blockIndex, nodeIndex] = block.parent;
-            const playerNode = gameMap.blocks[blockIndex].nodes[nodeIndex];
+            const { blockIndex, nodeIndex } = block.parentNode;
+            const playerNode = blocks[blockIndex].nodes[nodeIndex];
             const nodeMoveMap = new Map();
-            pushContents(gameMap, playerNode, (playerNode.facingNeighborIndex + dir) % gameMap.p, nodeMoveMap);
-            // TODO do something with nodeMoveMap
+            pushContents(gameMap, playerNode, (playerNode.facingNeighborIndex + dir) % p, nodeMoveMap);
+
+            const newNodes = new Map();
+            nodeMoveMap.forEach(([newNode, returnNeighborIndex], startNode) => {
+                newNodes.set(newNode, [startNode.contents, (returnNeighborIndex - dir + p + p / 2) % p]);
+                startNode.contents = { type: 'Empty' };
+            });
+            newNodes.forEach(([contents, facingNeighborIndex], node) => {
+                node.contents = contents;
+                node.facingNeighborIndex = facingNeighborIndex;
+                if (contents.type === 'Block') {
+                    blocks[contents.index].parentNode = node.coordinate;
+                }
+            });
         }
     }
 }

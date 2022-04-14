@@ -17,6 +17,8 @@
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script>
+        // ⁻
+
         const P = 4, Q = 6;
         const gameMap = newGameMap(P);
         console.log(gameMap);
@@ -29,37 +31,14 @@
         canvas.height = HEIGHT;
         render(ctx, gameMap);
 
-        let currNodeIndex = 0, parentDir = 0;
-        let animating = undefined;
-
-        function animate() {
-            const { numSteps, dir, neighbor } = animating;
-            if (numSteps === NUM_STEPS) {
-                currNodeIndex = neighbor.nodeIndex;
-                parentDir = (dir + P / 2 + P - neighbor.returnNeighborIndex) % P;
-                animating = undefined;
-                drawMap(ctx, map, currNodeIndex, 0, 0, 2 * π * parentDir / P);
-            } else {
-                animating.numSteps++;
-                drawMap(ctx, map, currNodeIndex, D * numSteps / NUM_STEPS, 2 * π * dir / P + π, 2 * π * parentDir / P);
-                setTimeout(animate, 20);
-            }
-        }
-
         document.addEventListener('keydown', e => {
-            let dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
-            // let dir = { Numpad6: 0, Numpad9: 1, Numpad8: 2, Numpad7: 3, Numpad4: 4, Numpad1: 5, Numpad2: 6, Numpad3: 7 }[e.code];
-            if (dir !== undefined) {
-                if (parentDir % 1 === .5) {
-                    dir -= .5;
-                }
-                const neighbor = map[currNodeIndex].neighbors[(dir + P - parentDir) % P];
-                if (animating === undefined && neighbor !== undefined) {
-                    animating = { numSteps: 0, dir, neighbor };
-                    animate();
-                }
-                e.preventDefault();
+            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            if (dir === undefined) {
+                return;
             }
+            movePlayer(gameMap, dir);
+            render(ctx, gameMap);
+            e.preventDefault();
         });
     </script>
 </body>

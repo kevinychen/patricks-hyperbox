@@ -21,15 +21,15 @@ function drawLine(ctx, x1, y1, x2, y2, color) {
 
 function render(ctx, gameMap) {
     const { p, blocks } = gameMap;
-    const { q, parent } = blocks.find(block => block.player);
+    const { q, parentNode } = blocks.find(block => block.player);
     const { D, R, S } = getParameters(p, q);
 
-    const [blockIndex, nodeIndex] = parent;
+    const { blockIndex, nodeIndex } = parentNode;
     const parentBlock = gameMap.blocks[blockIndex];
 
-    function drawPolygon(center_r, center_θ, heading, contents, contentsType) {
+    function drawPolygon(center_r, center_θ, heading, contents) {
         ctx.strokeStyle = 'black';
-        ctx.fillStyle = { Block: 'brown', Empty: 'transparent' }[contentsType];
+        ctx.fillStyle = { Block: 'brown', Empty: 'transparent' }[contents.type];
         ctx.beginPath();
         for (let i = 0; i < p; i++) {
             const [r, θ, localHeading] = move(center_r, center_θ, R, heading + 2 * π * (i + .5) / p);
@@ -42,13 +42,13 @@ function render(ctx, gameMap) {
     }
 
     function helper(nodeIndex, r, θ, heading, returnNeighborIndex, prevNodeIndex) {
-        const { neighbors, contents, contentsType } = parentBlock.nodes[nodeIndex];
-        drawPolygon(r, θ, heading, contents, contentsType);
+        const { neighbors, contents } = parentBlock.nodes[nodeIndex];
+        drawPolygon(r, θ, heading, contents);
         for (let i = 0; i < p; i++) {
             if (neighbors[i]?.isMainEdge) {
                 const { nodeIndex: newNodeIndex, returnNeighborIndex: newReturnNeighborIndex } = neighbors[i];
                 if (newNodeIndex !== prevNodeIndex) {
-                    const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / P);
+                    const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * (i - returnNeighborIndex) / p);
                     drawLine(ctx, ...equidistantProjection(r, θ), ...equidistantProjection(new_r, new_θ), 'red');
                     helper(newNodeIndex, new_r, new_θ, newHeading + π, newReturnNeighborIndex, nodeIndex);
                 }
@@ -57,5 +57,5 @@ function render(ctx, gameMap) {
     }
 
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    helper(nodeIndex, 0, 0, 0, p);
+    helper(nodeIndex, 0, 0, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, p);
 }
