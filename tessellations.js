@@ -3,15 +3,7 @@
  */
 
 const ɛ = 1e-12;
-const π = Math.PI;
-sin = x => Math.sin(x);
-cos = x => Math.cos(x);
-acos = x => Math.acos(x);
-sinh = x => (Math.exp(x) - Math.exp(-x)) / 2;
-cosh = x => (Math.exp(x) + Math.exp(-x)) / 2;
-tanh = x => sinh(x) / cosh(x);
-asinh = x => Math.log(x + Math.sqrt(x * x + 1));
-acosh = x => Math.log(x + Math.sqrt(x * x - 1));
+const { PI: π, sin, cos, acos, sinh, cosh, tanh, asinh, acosh, atanh } = Math;
 
 /*
  * Returns relevant lengths for the tessellation with Schlafli symbol {p,q}
@@ -134,6 +126,8 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
         helper(0, i);
     }
 
+    // Remove all nodes that don't satisfy the minRadius restriction,
+    // by swapping each one with the last array element and popping that element to keep the array contiguous.
     for (let nodeIndex = 0; nodeIndex < polygons.length;) {
         const { neighbors, r, θ } = polygons[nodeIndex];
         if (tanh(r) * Math.max(Math.abs(cos(θ)), Math.abs(sin(θ))) < tanh((minRadius + .5) * D)) {

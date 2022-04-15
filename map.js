@@ -19,6 +19,7 @@ function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, fill
     const blockIndex = gameMap.blocks.length;
     const block = {
         q,
+        minRadius,
         nodes: getBoundedTessellation(gameMap.p, q, max_r, minRadius)
             .map((polygon, i) => ({
                 neighbors: polygon.neighbors,

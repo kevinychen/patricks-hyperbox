@@ -22,9 +22,9 @@
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
         console.log(gameMap);
-        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 4, 2, false, false);
+        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 4, 1.999, false, false);
         const playerBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 1, 0, true, true);
-        const normalBlock = addBlockToGameMap(gameMap, outerBlock, [0], Q, 1, 0, true, false);
+        const normalBlock = addBlockToGameMap(gameMap, outerBlock, [0], Q, 4, 1, false, false);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');

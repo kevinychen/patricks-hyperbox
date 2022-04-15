@@ -9,6 +9,7 @@ interface GameMap {
 interface Block {
 
     q: number;
+    minRadius: number;
     nodes: Node[];
     parentNode: NodeCoordinate;
     player: boolean;
