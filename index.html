@@ -19,25 +19,37 @@
     <script>
         // ⁻
 
-        const P = 4, Q = 6;
+        const P = 4, Q = 5;
         const gameMap = newGameMap(P);
         console.log(gameMap);
-        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 2, 1, false, false);
+        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 4, 2, false, false);
         const playerBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 1, 0, true, true);
+        const normalBlock = addBlockToGameMap(gameMap, outerBlock, [0], Q, 1, 0, true, false);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
-        render(ctx, gameMap);
 
+        const contentsLocationMap = new Map();
+        let animatingStep = 0;
+        render(ctx, gameMap, contentsLocationMap, animatingStep);
+
+        function animate() {
+            render(ctx, gameMap, contentsLocationMap, animatingStep);
+            if (animatingStep > 0) {
+                animatingStep--;
+                setTimeout(animate, 20);
+            }
+        }
         document.addEventListener('keydown', e => {
             const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
-            if (dir === undefined) {
+            if (dir === undefined || animatingStep !== 0) {
                 return;
             }
             movePlayer(gameMap, dir);
-            render(ctx, gameMap);
+            animatingStep = NUM_ANIMATION_STEPS;
+            animate();
             e.preventDefault();
         });
     </script>

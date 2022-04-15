@@ -52,22 +52,23 @@ function addWallToGameMap(gameMap, parentBlock, path) {
     }
 }
 
-function moveContents(gameMap, startNode, newNode, returnNeighborIndex, nodeMoveMap) {
+function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap) {
+    const { p } = gameMap;
     const { contents } = newNode;
     if (contents.type === 'Wall') {
         return 'CannotPush';
     }
     if (contents.type === 'Floor' || contents.type === 'Empty') {
-        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
+        nodeMoveMap.set(startNode, [newNode, neighborIndex, returnNeighborIndex]);
         return 'CanPush';
     }
     if (newNode === startNode || nodeMoveMap.has(newNode)) {
-        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
+        nodeMoveMap.set(startNode, [newNode, neighborIndex, returnNeighborIndex]);
         return 'Cycle';
     }
-    const pushResult = pushContents(gameMap, newNode, returnNeighborIndex + gameMap.p / 2, nodeMoveMap);
+    const pushResult = pushContents(gameMap, newNode, (returnNeighborIndex + p / 2) % p, nodeMoveMap);
     if (pushResult === 'CanPush') {
-        nodeMoveMap.set(startNode, [newNode, returnNeighborIndex]);
+        nodeMoveMap.set(startNode, [newNode, neighborIndex, returnNeighborIndex]);
     }
     return pushResult;
 }
@@ -77,7 +78,7 @@ function pushContents(gameMap, startNode, neighborIndex, nodeMoveMap) {
 
     // TODO handle external neighbor
     const newNode = gameMap.blocks[startNode.coordinate.blockIndex].nodes[nodeIndex];
-    const result = moveContents(gameMap, startNode, newNode, returnNeighborIndex, nodeMoveMap);
+    const result = moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap);
     if (result === 'CanPush' || result === 'Cycle') {
         return result;
     }
@@ -98,9 +99,13 @@ function movePlayer(gameMap, dir) {
             pushContents(gameMap, playerNode, (playerNode.facingNeighborIndex + dir) % p, nodeMoveMap);
 
             const newNodes = new Map();
-            nodeMoveMap.forEach(([newNode, returnNeighborIndex], startNode) => {
-                newNodes.set(newNode, [startNode.contents, (returnNeighborIndex - dir + p + p / 2) % p]);
+            nodeMoveMap.forEach(([newNode, neighborIndex, returnNeighborIndex], startNode) => {
+                newNodes.set(newNode, [
+                    startNode.contents,
+                    (startNode.facingNeighborIndex + returnNeighborIndex - neighborIndex + p + p / 2) % p,
+                ]);
                 startNode.contents = { type: 'Empty' };
+                startNode.facingNeighborIndex = 0;
             });
             newNodes.forEach(([contents, facingNeighborIndex], node) => {
                 node.contents = contents;
