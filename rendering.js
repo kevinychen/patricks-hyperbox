@@ -12,13 +12,22 @@ function beltramiKleinProjection(r, θ) {
     return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
 }
 
-function render(ctx, gameMap, locationMap, animatingStep) {
+function render(ctx, gameMap, locationMap, animatingStep, currDir) {
     const { p, blocks } = gameMap;
 
-    function interpolate(point, prevPoint) {
-        const x = point[0] + (prevPoint[0] - point[0]) * animatingStep / NUM_ANIMATION_STEPS;
-        const y = point[1] + (prevPoint[1] - point[1]) * animatingStep / NUM_ANIMATION_STEPS;
-        return [x, y];
+    function animate(key, points) {
+        if (animatingStep === 0) {
+            locationMap.set(key, points);
+        }
+        const prevPoints = locationMap.get(key) || points;
+        const interpolatedPoints = [];
+        for (let i = 0; i < points.length; i++) {
+            interpolatedPoints.push([
+                points[i][0] + (prevPoints[i][0] - points[i][0]) * animatingStep / NUM_ANIMATION_STEPS,
+                points[i][1] + (prevPoints[i][1] - points[i][1]) * animatingStep / NUM_ANIMATION_STEPS,
+            ]);
+        }
+        return interpolatedPoints;
     }
 
     const polygons = [];
@@ -59,30 +68,45 @@ function render(ctx, gameMap, locationMap, animatingStep) {
             return points;
         }
 
+        function getPlayerEye(center_r, center_θ, heading, whichEye) {
+            const eyeAngle = π / 2 + .41 * π * whichEye;
+            let [r, θ, localHeading] = move(center_r, center_θ, .3 * D, heading + eyeAngle);
+            if (currDir !== undefined) {
+                [r, θ, localHeading] = move(r, θ, .07 * D, localHeading - eyeAngle + currDir * π / 2);
+            }
+            const points = [];
+            for (let i = 0; i < NUM_STEPS; i++) {
+                points.push(equidistantProjection(
+                    ...transformPointFunc(...move(r, θ, .09 * D, 2 * π * i / NUM_STEPS))));
+            }
+            return points;
+        }
+
         // heading is toward the first neighbor of node
         function processNode(center_r, center_θ, heading, node) {
-            const points = getPolygon(center_r, center_θ, heading);
-            if (animatingStep === 0) {
-                locationMap.set(node.coordinate, points);
-            }
-            const prevPoints = locationMap.get(node.coordinate) || points;
-            const interpolatedPoints = [];
-            for (let i = 0; i < points.length; i++) {
-                interpolatedPoints.push(interpolate(points[i], prevPoints[i]));
-            }
             polygons.push({
-                points: interpolatedPoints,
+                points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
                 strokeStyle: block.color,
                 fillStyle: node.contents.type === 'Wall' ? block.color : 'transparent',
             });
 
             if (node.contents.type === 'Block') {
                 const block = blocks[node.contents.index];
+                const headingAdjustment = 2 * π * node.facingNeighborIndex / p;
                 // R_0 is the ratio of length of a square in the Beltrami-Klein projection of this block,
                 // to the length of the smallest square containing the projection of the entire block.
                 const R_0 = tanh((block.minRadius + .5) * D) / tanh(D / 2);
                 processBlock(block, 0, heading, (r, θ) => transformPointFunc(
-                    ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + 2 * π * node.facingNeighborIndex / p)));
+                    ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + headingAdjustment)));
+                if (block.player) {
+                    for (const whichEye of [-1, 1]) {
+                        polygons.push({
+                            points: getPlayerEye(center_r, center_θ, heading + headingAdjustment, whichEye, 0),
+                            strokeStyle: 'black',
+                            fillStyle: 'black',
+                        });
+                    }
+                }
             }
         }
 

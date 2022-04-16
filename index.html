@@ -35,13 +35,14 @@
 
         const contentsLocationMap = new Map();
         let animatingStep = 0;
+        let currDir = undefined;
         render(ctx, gameMap, contentsLocationMap, animatingStep);
 
         function animate() {
             if (animatingStep > 0) {
                 animatingStep--;
                 setTimeout(animate, 30);
-                render(ctx, gameMap, contentsLocationMap, animatingStep);
+                render(ctx, gameMap, contentsLocationMap, animatingStep, currDir);
             }
         }
         document.addEventListener('keydown', e => {
@@ -51,6 +52,7 @@
             }
             movePlayer(gameMap, dir);
             animatingStep = NUM_ANIMATION_STEPS;
+            currDir = dir;
             animate();
             e.preventDefault();
         });
