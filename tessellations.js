@@ -3,7 +3,7 @@
  */
 
 const ɛ = 1e-12;
-const { PI: π, sin, cos, acos, sinh, cosh, tanh, asinh, acosh, atanh } = Math;
+const { PI: π, abs, max, sin, cos, acos, sinh, cosh, tanh, asinh, acosh, atanh } = Math;
 
 /*
  * Returns relevant lengths for the tessellation with Schlafli symbol {p,q}
@@ -96,15 +96,19 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
         const nextState = CONNECTION_RULES[`{${p},${q}}`][state][neighborIndex];
         if (typeof (nextState) === 'number') {
             const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * neighborIndex / p);
-            const node = { state: nextState, neighbors: new Array(p), r: new_r, θ: new_θ, heading: newHeading + π, color: undefined };
             if (new_r <= max_r) {
-                const newNodeIndex = polygons.length;
-                polygons.push(node);
-                connect(nodeIndex, neighborIndex, newNodeIndex, 0, true);
-                for (let i = 0; i < p; i++) {
-                    helper(newNodeIndex, i);
+                if (tanh(new_r) * max(abs(cos(new_θ)), abs(sin(new_θ))) < tanh((minRadius + .5) * D)) {
+                    const node = { state: nextState, neighbors: new Array(p), r: new_r, θ: new_θ, heading: newHeading + π };
+                    const newNodeIndex = polygons.length;
+                    polygons.push(node);
+                    connect(nodeIndex, neighborIndex, newNodeIndex, 0, true);
+                    for (let i = 0; i < p; i++) {
+                        helper(newNodeIndex, i);
+                    }
+                } else {
+                    const externalNeighborIndex = (Math.round(new_θ * p / (2 * π)) % p + p) % p;
+                    polygons[nodeIndex].neighbors[neighborIndex] = { externalNeighborIndex };
                 }
-                return;
             }
         }
         const d = { 'L': 1, 'R': p - 1 }[nextState];
@@ -114,7 +118,7 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
                 const neighborIndex = (edge.returnNeighborIndex + d) % p;
                 helper(edge.nodeIndex, neighborIndex);
                 edge = polygons[edge.nodeIndex].neighbors[neighborIndex];
-                if (edge === undefined) {
+                if (edge?.nodeIndex === undefined) {
                     return;
                 }
             }
@@ -125,32 +129,5 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
     for (let i = 0; i < p; i++) {
         helper(0, i);
     }
-
-    // Remove all nodes that don't satisfy the minRadius restriction,
-    // by swapping each one with the last array element and popping that element to keep the array contiguous.
-    for (let nodeIndex = 0; nodeIndex < polygons.length;) {
-        const { neighbors, r, θ } = polygons[nodeIndex];
-        if (tanh(r) * Math.max(Math.abs(cos(θ)), Math.abs(sin(θ))) < tanh((minRadius + .5) * D)) {
-            nodeIndex++;
-            continue;
-        }
-        for (const neighbor of neighbors) {
-            if (neighbor?.nodeIndex !== undefined) {
-                const externalNeighborIndex = (Math.round(θ * p / (2 * π)) % p + p) % p;
-                polygons[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex] = { externalNeighborIndex };
-            }
-        }
-        const lastNode = polygons.pop();
-        if (nodeIndex === polygons.length) {
-            continue;
-        }
-        for (const neighbor of lastNode.neighbors) {
-            if (neighbor?.nodeIndex !== undefined) {
-                polygons[neighbor.nodeIndex].neighbors[neighbor.returnNeighborIndex].nodeIndex = nodeIndex;
-            }
-        }
-        polygons[nodeIndex] = lastNode;
-    }
-
     return polygons;
 }

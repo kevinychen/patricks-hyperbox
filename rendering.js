@@ -31,7 +31,7 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
     }
 
     const polygons = [];
-    const processedBlocks = new Set();
+    const processedBlocks = new Map();
 
     // heading is toward the first neighbor of node
     function processBlock(block, nodeIndex, heading, transformPointFunc) {
@@ -41,9 +41,8 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
         let centerPosition = undefined;
 
         if (processedBlocks.has(block)) {
-            return;
+            return processedBlocks.get(block);
         }
-        processedBlocks.add(block);
 
         function getPolygon(center_r, center_θ, heading, scale = 1) {
             const points = [];
@@ -139,6 +138,7 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
             }
         }
         helper(nodeIndex, 0, 0, heading, -1);
+        processedBlocks.set(block, centerPosition);
         return centerPosition;
     }
 
