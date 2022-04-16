@@ -10,6 +10,7 @@ interface Block {
 
     q: number;
     minRadius: number;
+    color: string;
     nodes: Node[];
     parentNode: NodeCoordinate;
     player: boolean;

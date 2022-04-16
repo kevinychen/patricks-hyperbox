@@ -22,9 +22,11 @@
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
         console.log(gameMap);
-        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 4, 1.999, false, false);
-        const playerBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 1, 0, true, true);
-        const normalBlock = addBlockToGameMap(gameMap, outerBlock, [0], Q, 4, 1, false, false);
+        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 2, 1, 'green', false, false);
+        const middleBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 4, 1.999, 'blue', false, false);
+        const playerBlock = addBlockToGameMap(gameMap, middleBlock, [], Q, 1, 0, 'pink', true, true);
+        const normalBlock = addBlockToGameMap(gameMap, middleBlock, [0], Q, 4, 1, 'brown', false, false);
+        const innerBlock = addBlockToGameMap(gameMap, normalBlock, [0], Q, 1, 0, 'red', true, false);
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -36,9 +38,9 @@
         render(ctx, gameMap, contentsLocationMap, animatingStep);
 
         function animate() {
-            render(ctx, gameMap, contentsLocationMap, animatingStep);
             if (animatingStep > 0) {
                 animatingStep--;
+                render(ctx, gameMap, contentsLocationMap, animatingStep);
                 setTimeout(animate, 20);
             }
         }
