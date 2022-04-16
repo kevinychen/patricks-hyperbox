@@ -76,10 +76,20 @@ function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighbor
 }
 
 function pushContents(gameMap, startNode, neighborIndex, nodeMoveMap) {
-    const { nodeIndex, returnNeighborIndex, externalNeighborIndex } = startNode.neighbors[neighborIndex];
+    let blockIndex = startNode.coordinate.blockIndex;
+    let { nodeIndex, returnNeighborIndex, externalNeighborIndex } = startNode.neighbors[neighborIndex];
 
-    // TODO handle external neighbor
-    const newNode = gameMap.blocks[startNode.coordinate.blockIndex].nodes[nodeIndex];
+    // TODO this needs to be a while loop to handle going up multiple levels of blocks
+    if (externalNeighborIndex !== undefined) {
+        const parentBlock = gameMap.blocks[blockIndex];
+        const { blockIndex: parentBlockIndex, nodeIndex: parentNodeIndex } = parentBlock.parentNode;
+        const { neighbors, facingNeighborIndex } = gameMap.blocks[parentBlockIndex].nodes[parentNodeIndex];
+        blockIndex = parentBlockIndex;
+        ({ nodeIndex, returnNeighborIndex, externalNeighborIndex } =
+            neighbors[(facingNeighborIndex + externalNeighborIndex)]);
+    }
+
+    const newNode = gameMap.blocks[blockIndex].nodes[nodeIndex];
     const result = moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap);
     if (result === 'CanPush' || result === 'Cycle') {
         return result;

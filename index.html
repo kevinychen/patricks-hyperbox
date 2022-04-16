@@ -22,7 +22,7 @@
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
         console.log(gameMap);
-        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 2, 1, 'green', false, false);
+        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 3, 2, 'green', false, false);
         const middleBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 4, 1.999, 'blue', false, false);
         const playerBlock = addBlockToGameMap(gameMap, middleBlock, [], Q, 1, 0, 'pink', true, true);
         const normalBlock = addBlockToGameMap(gameMap, middleBlock, [0], Q, 4, 1, 'brown', false, false);

@@ -52,7 +52,7 @@ function render(ctx, gameMap, locationMap, animatingStep) {
             if (animatingStep === 0) {
                 locationMap.set(node.coordinate, points);
             }
-            const prevPoints = locationMap.get(node.coordinate);
+            const prevPoints = locationMap.get(node.coordinate) || points;
             ctx.strokeStyle = block.color;
             ctx.fillStyle = node.contents.type === 'Wall' ? block.color : 'transparent';
             ctx.beginPath();
