@@ -40,8 +40,8 @@
         function animate() {
             if (animatingStep > 0) {
                 animatingStep--;
+                setTimeout(animate, 30);
                 render(ctx, gameMap, contentsLocationMap, animatingStep);
-                setTimeout(animate, 20);
             }
         }
         document.addEventListener('keydown', e => {
