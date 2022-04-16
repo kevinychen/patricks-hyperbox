@@ -1,3 +1,6 @@
+/*
+ * Logic related to game bootstrapping and play mechanics. See types.ts for typings.
+ */
 
 function getNodeIndex(block, path) {
     let nodeIndex = 0;
@@ -9,6 +12,10 @@ function getNodeIndex(block, path) {
         nodeIndex = neighbor.nodeIndex;
     }
     return nodeIndex;
+}
+
+function getNode(block, path) {
+    return block.nodes[getNodeIndex(block, path)];
 }
 
 function newGameMap(p) {
@@ -43,15 +50,15 @@ function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, colo
 function addRefToGameMap(gameMap, block, path, ref) {
     const refIndex = gameMap.refs.length;
     gameMap.refs.push(ref);
-    block.nodes[getNodeIndex(block, path)].contents = { index: refIndex, type: 'Ref' };
+    getNode(block, path).contents = { index: refIndex, type: 'Ref' };
 }
 
 function addWallToGameMap(block, path) {
-    block.nodes[getNodeIndex(block, path)].contents = { type: 'Wall' };
+    getNode(block, path).contents = { type: 'Wall' };
 }
 
 function addButtonToGameMap(gameMap, block, path) {
-    gameMap.buttons.push({ ...block.nodes[getNodeIndex(block, path)].coordinate });
+    gameMap.buttons.push({ ...getNode(block, path).coordinate });
 }
 
 function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap) {
@@ -76,26 +83,40 @@ function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighbor
 }
 
 function pushContents(gameMap, startNode, neighborIndex, nodeMoveMap) {
+    const { p, blocks } = gameMap;
     let blockIndex = startNode.coordinate.blockIndex;
     let { nodeIndex, returnNeighborIndex, externalNeighborIndex } = startNode.neighbors[neighborIndex];
 
     // TODO this needs to be a while loop to handle going up multiple levels of blocks
     if (externalNeighborIndex !== undefined) {
-        const parentBlock = gameMap.blocks[blockIndex];
+        const parentBlock = blocks[blockIndex];
         const { blockIndex: parentBlockIndex, nodeIndex: parentNodeIndex } = parentBlock.parentNode;
-        const { neighbors, facingNeighborIndex } = gameMap.blocks[parentBlockIndex].nodes[parentNodeIndex];
+        const { neighbors, facingNeighborIndex } = blocks[parentBlockIndex].nodes[parentNodeIndex];
         blockIndex = parentBlockIndex;
         ({ nodeIndex, returnNeighborIndex, externalNeighborIndex } =
             neighbors[(facingNeighborIndex + externalNeighborIndex)]);
     }
 
-    const newNode = gameMap.blocks[blockIndex].nodes[nodeIndex];
+    const newNode = blocks[blockIndex].nodes[nodeIndex];
     const result = moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap);
     if (result === 'CanPush' || result === 'Cycle') {
         return result;
     }
 
-    // TODO try entering
+    // TODO also handle ref
+    if (newNode.contents.type === 'Block') {
+        // try entering the block
+        const block = blocks[newNode.contents.index];
+        const enterPath = block.minRadius === 0
+            ? []
+            : [(returnNeighborIndex - newNode.facingNeighborIndex + p) % p]
+                .concat(new Array(block.minRadius - 1).fill(p / 2));
+        const result = moveContents(gameMap, startNode, getNode(block, enterPath), neighborIndex, p / 2, nodeMoveMap);
+        if (result === 'CanPush' || result === 'Cycle') {
+            return result;
+        }
+    }
+
     // TODO try eating
 
     return 'CannotPush';
