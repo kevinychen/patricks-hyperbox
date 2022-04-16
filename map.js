@@ -12,7 +12,7 @@ function getNodeIndex(block, path) {
 }
 
 function newGameMap(p) {
-    return { p, blocks: [], refs: [] };
+    return { p, blocks: [], refs: [], buttons: [] };
 }
 
 function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, color, fillWithWalls, player) {
@@ -40,18 +40,18 @@ function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, colo
     return block;
 }
 
-function addRefToGameMap(gameMap, parentBlock, path, ref) {
+function addRefToGameMap(gameMap, block, path, ref) {
     const refIndex = gameMap.refs.length;
     gameMap.refs.push(ref);
-    if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = { index: refIndex, type: 'Ref' };
-    }
+    block.nodes[getNodeIndex(block, path)].contents = { index: refIndex, type: 'Ref' };
 }
 
-function addWallToGameMap(gameMap, parentBlock, path) {
-    if (parentBlock !== undefined) {
-        getNode(parentBlock, path).contents = { type: 'Wall' };
-    }
+function addWallToGameMap(block, path) {
+    block.nodes[getNodeIndex(block, path)].contents = { type: 'Wall' };
+}
+
+function addButtonToGameMap(gameMap, block, path) {
+    gameMap.buttons.push({ ...block.nodes[getNodeIndex(block, path)].coordinate });
 }
 
 function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap) {
@@ -60,7 +60,7 @@ function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighbor
     if (contents.type === 'Wall') {
         return 'CannotPush';
     }
-    if (contents.type === 'Floor' || contents.type === 'Empty') {
+    if (contents.type === 'Empty') {
         nodeMoveMap.set(startNode, [newNode, neighborIndex, returnNeighborIndex]);
         return 'CanPush';
     }
@@ -128,4 +128,13 @@ function movePlayer(gameMap, dir) {
             });
         }
     }
+}
+
+function isWin(gameMap) {
+    const { blocks, refs, buttons } = gameMap;
+    return buttons.every(({ blockIndex, nodeIndex }) => {
+        const node = blocks[blockIndex].nodes[nodeIndex];
+        return (node.contents.type === 'Block' && !blocks[node.contents.index].player)
+            || (node.contents.type === 'Ref' && !blocks[refs[node.contents.index].blockId].player);
+    });
 }

@@ -1,8 +1,8 @@
 const WIDTH = 1200;
 const HEIGHT = 800;
 const SCALE = 100;
-const NUM_STEPS = 10;
-const NUM_ANIMATION_STEPS = 10;
+const NUM_STEPS = 20;
+const NUM_ANIMATION_STEPS = 5;
 
 function equidistantProjection(r, θ) {
     return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
@@ -45,21 +45,21 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
         }
         processedBlocks.add(block);
 
-        function getPolygon(center_r, center_θ, heading) {
+        function getPolygon(center_r, center_θ, heading, scale = 1) {
             const points = [];
             for (let i = 0; i < p; i++) {
-                const [r, θ, localHeading] = move(center_r, center_θ, D / 2, heading + 2 * π * i / p);
+                const [r, θ, localHeading] = move(center_r, center_θ, scale * D / 2, heading + 2 * π * i / p);
 
                 const sideIsFar = transformPointFunc(r, θ)[0] > 10;
-                const cornerIsFar = transformPointFunc(...move(r, θ, S / 2, localHeading + π / 2))[0] > 10;
+                const cornerIsFar = transformPointFunc(...move(r, θ, scale * S / 2, localHeading + π / 2))[0] > 10;
                 for (let step = -NUM_STEPS / 2; step <= NUM_STEPS / 2; step++) {
-                    let d = S * Math.abs(step / NUM_STEPS);
+                    let d = scale * S * Math.abs(step / NUM_STEPS);
                     if (sideIsFar) {
                         d = 0;
                     }
                     // render more points near the valid parts, for a better interpolated curve
                     else if (cornerIsFar) {
-                        d /= 7;
+                        d /= 1.5;
                     }
                     points.push(equidistantProjection(
                         ...transformPointFunc(...move(r, θ, d, localHeading + π / 2 * Math.sign(step)))));
@@ -107,6 +107,16 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
                         });
                     }
                 }
+            }
+
+            const button = gameMap.buttons.find(({ blockIndex, nodeIndex }) =>
+                blockIndex === node.coordinate.blockIndex && nodeIndex === node.coordinate.nodeIndex);
+            if (button !== undefined) {
+                polygons.push({
+                    points: animate(button, getPolygon(center_r, center_θ, heading, .8)),
+                    strokeStyle: 'gray',
+                    fillStyle: 'transparent',
+                });
             }
         }
 

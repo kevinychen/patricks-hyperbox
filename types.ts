@@ -4,6 +4,7 @@ interface GameMap {
     p: number;
     blocks: Block[];
     refs: Ref[];
+    buttons: NodeCoordinate[];
 }
 
 interface Block {
@@ -30,7 +31,6 @@ interface Node {
     contents: { index: BlockIndex, type: 'Block' }
         | { index: RefIndex, type: 'Ref' }
         | { type: 'Wall' }
-        | { button: 'Button' | 'PlayerButton', type: 'Floor' }
         | { type: 'Empty' }
     facingNeighborIndex: number;
 }
@@ -58,8 +58,3 @@ type BlockIndex = number;
 type RefIndex = number;
 
 type NodeIndex = number;
-
-interface Floor {
-
-    type: 'Button' | 'PlayerButton',
-}
