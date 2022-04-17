@@ -1,23 +1,39 @@
 <html>
 
 <head>
+    <title>Patrick's Hyperbox</title>
+    <meta charset="UTF-8">
+    <meta name="Description" content="Patrick's Parabox in hyperbolic space">
     <style>
-        canvas {
+        div {
             width: 1200px;
             height: 800px;
             border: 1px solid black;
             margin: 0 auto;
+            position: relative;
+        }
+
+        .key {
+            position: absolute;
+            font-size: 60px;
+            width: 80px;
+            height: 80px;
         }
     </style>
 </head>
 
 <body>
-    <canvas id="canvas"></canvas>
+    <div>
+        <canvas id="canvas"></canvas>
+        <input type="button" class="key" style="bottom: 10px; right: 10px;" value="→" onclick="moveDir(0);" />
+        <input type="button" class="key" style="bottom: 100px; right: 100px;" value="↑" onclick="moveDir(1);" />
+        <input type="button" class="key" style="bottom: 10px; right: 190px;" value="←" onclick="moveDir(2);" />
+        <input type="button" class="key" style="bottom: 10px; right: 100px;" value="↓" onclick="moveDir(3);" />
+    </div>
     <script src="./tessellations.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script>
-        // ⁻
 
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
@@ -53,8 +69,8 @@
                 alert('You win!');
             }
         }
-        document.addEventListener('keydown', e => {
-            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+
+        function moveDir(dir) {
             if (dir === undefined || animatingStep !== 0) {
                 return;
             }
@@ -63,7 +79,10 @@
             currDir = dir;
             animate();
             e.preventDefault();
-        });
+        }
+
+        document.addEventListener('keydown', e =>
+            moveDir({ ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code]));
     </script>
 </body>
 

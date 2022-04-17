@@ -101,7 +101,7 @@ function pushContents(gameMap, startNode, neighborIndex, nodeMoveMap) {
         const { neighbors, facingNeighborIndex } = blocks[parentBlockIndex].nodes[parentNodeIndex];
         blockIndex = parentBlockIndex;
         ({ nodeIndex, returnNeighborIndex, externalNeighborIndex } =
-            neighbors[(facingNeighborIndex + externalNeighborIndex)]);
+            neighbors[(facingNeighborIndex + externalNeighborIndex) % p]);
     }
 
     const newNode = blocks[blockIndex].nodes[nodeIndex];

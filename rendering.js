@@ -138,7 +138,7 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir) {
                 for (const whichEye of [-1, 1]) {
                     polygons.push({
                         depth,
-                        points: getPlayerEye(center_r, center_θ, heading, whichEye),
+                        points: animate(whichEye, getPlayerEye(center_r, center_θ, heading, whichEye)),
                         strokeStyle: 'gray',
                         fillStyle: 'gray',
                     });
