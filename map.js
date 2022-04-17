@@ -26,6 +26,7 @@ function addBlockToGameMap(gameMap, parentBlock, path, q, [max_r, minRadius], [h
     const blockIndex = gameMap.blocks.length;
     const block = {
         q,
+        max_r,
         minRadius,
         hue,
         sat,

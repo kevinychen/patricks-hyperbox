@@ -1,0 +1,105 @@
+<html>
+
+<head>
+    <style>
+        .selected {
+            font-weight: bold;
+        }
+
+        .group {
+            margin-right: 20px;
+        }
+
+        canvas {
+            width: 1200px;
+            height: 800px;
+            border: 1px solid black;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="menu">
+        <input id="load" type="file" style="display:none;" />
+        <input type="button" value="Load" onclick="document.getElementById('load').click();" />
+
+        <a id="download" download="hyperbox.txt" style="display:none;"></a>
+        <input type="button" value="Download" onclick="download();" />
+    </div>
+    <div>
+        <span id="block-select"></span>
+        <input type="button" value="+" onclick="addBlockToGameMap(gameMap, undefined, [], 5, [1, 0], [120, 1, .5]); updateHtml();" />
+    </div>
+    <div id="block-info"></div>
+    <canvas id="canvas"></canvas>
+    <div id="item-select"></div>
+
+    <script src="./tessellations.js"></script>
+    <script src="./map.js"></script>
+    <script src="./rendering.js"></script>
+    <script>
+        // ⁻
+
+        const P = 4;
+        let gameMap = newGameMap(P);
+        let selectedBlock = 0;
+
+        const canvas = document.getElementById('canvas');
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        document.getElementById('load').addEventListener('change', e => {
+            const reader = new FileReader();
+            reader.onload = function() {
+                // TODO deserialize into game map
+                console.log(reader.result);
+                updateHtml();
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        function download() {
+            const serializedGameMap = 'TODO';
+            const downloadLink = document.getElementById('download');
+            downloadLink.href = window.URL.createObjectURL(new Blob([serializedGameMap], { type: 'text/plain' }));
+            downloadLink.click();
+        }
+
+        function updateBlockSelect() {
+            let innerHTML = '';
+            for (let i = 0; i < gameMap.blocks.length; i++) {
+                const style = i === selectedBlock ? 'class="selected"' : '';
+                innerHTML += `<input type="button" ${style} value="Block ${i+1}" onclick="selectedBlock = ${i}; updateHtml();" />`;
+            }
+            document.getElementById('block-select').innerHTML = innerHTML;
+        }
+
+        function updateBlockInfo() {
+            let innerHTML = '';
+            // TODO make these fields editable
+            if (selectedBlock < gameMap.blocks.length) {
+                const block = gameMap.blocks[selectedBlock];
+                innerHTML += `<span class="group">Squares per vertex: ${block.q}</span>`;
+                innerHTML += `<span class="group">Max distance: ${block.max_r}</span>`;
+                innerHTML += `<span class="group">Min steps to exit: ${block.max_r}</span>`;
+                innerHTML += `<span class="group">Hue: ${block.hue}</span>`;
+                innerHTML += `<span class="group">Sat: ${block.sat}</span>`;
+                innerHTML += `<span class="group">Val: ${block.val}</span>`;
+                innerHTML += `<span class="group">Is player: ${block.player ? 'Yes' : 'No'}</span>`;
+                innerHTML += `<input type="button" value="Delete block" onclick="TODO; updateHtml();" />`;
+            }
+            document.getElementById('block-info').innerHTML = innerHTML;
+        }
+
+        function updateHtml() {
+            updateBlockSelect();
+            updateBlockInfo();
+            render(canvas, gameMap, new Map(), 0);
+        }
+
+        updateHtml();
+    </script>
+</body>
+
+</html>

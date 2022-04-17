@@ -36,20 +36,19 @@
         gameMap.playerButton = { blockIndex: 0, nodeIndex: 7 };
 
         const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
 
         const contentsLocationMap = new Map();
         let animatingStep = 0;
         let currDir = undefined;
-        render(ctx, gameMap, contentsLocationMap, animatingStep);
+        render(canvas, gameMap, contentsLocationMap, animatingStep);
 
         function animate() {
             if (animatingStep > 0) {
                 animatingStep--;
                 setTimeout(animate, 40);
-                render(ctx, gameMap, contentsLocationMap, animatingStep, currDir);
+                render(canvas, gameMap, contentsLocationMap, animatingStep, currDir);
             } else if (isWin(gameMap)) {
                 alert('You win!');
             }

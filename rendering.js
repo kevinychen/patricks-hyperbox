@@ -13,12 +13,13 @@ function beltramiKleinProjection(r, θ) {
     return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
 }
 
-function render(ctx, gameMap, locationMap, animatingStep, currDir) {
+function render(canvas, gameMap, locationMap, animatingStep, currDir) {
     const { p, blocks, buttons, playerButton } = gameMap;
 
     function animate(key, points) {
         if (animatingStep === 0) {
             locationMap.set(key, points);
+            return points;
         }
         const prevPoints = locationMap.get(key) || points;
         const interpolatedPoints = [];
@@ -127,7 +128,7 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
                     fillStyle: 'transparent',
                 });
             }
-            if (equalsCoordinate(playerButton)) {
+            if (playerButton !== undefined && equalsCoordinate(playerButton)) {
                 polygons.push({
                     depth,
                     points: animate(playerButton, getPolygon(center_r, center_θ, heading, .8)),
@@ -168,7 +169,11 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
         return centerPosition;
     }
 
-    const { blockIndex, nodeIndex } = blocks.find(block => block.player).parentNode;
+    if (blocks.length === 0) {
+        return;
+    }
+    const playerBlock = blocks.find(block => block.player);
+    const { blockIndex, nodeIndex } = playerBlock === undefined ? blocks[0].nodes[0].coordinate : playerBlock.parentNode;
     const parentBlock = blocks[blockIndex];
 
     // player block 0 always faces east on the screen
@@ -187,6 +192,7 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
 
     polygons.sort(({ depth: depth1 }, { depth: depth2 }) => depth1 - depth2);
 
+    const ctx = canvas.getContext('2d');
     ctx.fillStyle = VOID_COLOR;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     for (const { points, strokeStyle, fillStyle } of polygons) {

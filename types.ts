@@ -11,6 +11,7 @@ interface GameMap {
 interface Block {
 
     q: number;
+    max_r: number;
     minRadius: number;
     hue: number;
     sat: number;
