@@ -3,6 +3,7 @@ const HEIGHT = 800;
 const SCALE = 100;
 const NUM_STEPS = 20;
 const NUM_ANIMATION_STEPS = 5;
+const VOID_COLOR = 'rgb(70,70,70)';
 
 function equidistantProjection(r, θ) {
     return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
@@ -13,7 +14,7 @@ function beltramiKleinProjection(r, θ) {
 }
 
 function render(ctx, gameMap, locationMap, animatingStep, currDir) {
-    const { p, blocks } = gameMap;
+    const { p, blocks, buttons, playerButton } = gameMap;
 
     function animate(key, points) {
         if (animatingStep === 0) {
@@ -34,8 +35,8 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
     const processedBlocks = new Map();
 
     // heading is toward the first neighbor of node
-    function processBlock(block, nodeIndex, heading, transformPointFunc) {
-        const { q, nodes } = block;
+    function processBlock(block, nodeIndex, heading, depth, transformPointFunc) {
+        const { q, hue, sat, val, nodes } = block;
         const { D, S } = getParameters(p, q);
 
         let centerPosition = undefined;
@@ -67,11 +68,11 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
             return points;
         }
 
-        function getPlayerEye(center_r, center_θ, heading, whichEye) {
+        function getPlayerEye(center_r, center_θ, heading, whichEye, dir) {
             const eyeAngle = π / 2 + .41 * π * whichEye;
             let [r, θ, localHeading] = move(center_r, center_θ, .3 * D, heading + eyeAngle);
-            if (currDir !== undefined) {
-                [r, θ, localHeading] = move(r, θ, .07 * D, localHeading - eyeAngle + currDir * π / 2);
+            if (dir !== undefined) {
+                [r, θ, localHeading] = move(r, θ, .07 * D, localHeading - eyeAngle + dir * π / 2);
             }
             const points = [];
             for (let i = 0; i < NUM_STEPS; i++) {
@@ -81,12 +82,12 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
             return points;
         }
 
-        // heading is toward the first neighbor of node
         function processNode(center_r, center_θ, heading, node) {
             polygons.push({
+                depth,
                 points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
-                strokeStyle: block.color,
-                fillStyle: node.contents.type === 'Wall' ? block.color : 'transparent',
+                strokeStyle: `hsl(${hue},${100 * sat}%,50%)`,
+                fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
             });
 
             if (node.contents.type === 'Block') {
@@ -95,12 +96,19 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
                 // R_0 is the ratio of length of a square in the Beltrami-Klein projection of this block,
                 // to the length of the smallest square containing the projection of the entire block.
                 const R_0 = tanh((block.minRadius + .5) * D) / tanh(D / 2);
-                processBlock(block, 0, heading, (r, θ) => transformPointFunc(
+                processBlock(block, 0, heading, depth + 1, (r, θ) => transformPointFunc(
                     ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + headingAdjustment)));
+                polygons.push({
+                    depth,
+                    points: animate(block, getPolygon(center_r, center_θ, heading + headingAdjustment)),
+                    strokeStyle: VOID_COLOR,
+                    fillStyle: VOID_COLOR,
+                });
                 if (block.player) {
                     for (const whichEye of [-1, 1]) {
                         polygons.push({
-                            points: getPlayerEye(center_r, center_θ, heading + headingAdjustment, whichEye, 0),
+                            depth: depth + 1,
+                            points: getPlayerEye(center_r, center_θ, heading + headingAdjustment, whichEye, currDir),
                             strokeStyle: 'black',
                             fillStyle: 'black',
                         });
@@ -108,14 +116,32 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
                 }
             }
 
-            const button = gameMap.buttons.find(({ blockIndex, nodeIndex }) =>
-                blockIndex === node.coordinate.blockIndex && nodeIndex === node.coordinate.nodeIndex);
+            const equalsCoordinate = ({ blockIndex, nodeIndex }) =>
+                blockIndex === node.coordinate.blockIndex && nodeIndex === node.coordinate.nodeIndex;
+            const button = buttons.find(equalsCoordinate);
             if (button !== undefined) {
                 polygons.push({
+                    depth,
                     points: animate(button, getPolygon(center_r, center_θ, heading, .8)),
                     strokeStyle: 'gray',
                     fillStyle: 'transparent',
                 });
+            }
+            if (equalsCoordinate(playerButton)) {
+                polygons.push({
+                    depth,
+                    points: animate(playerButton, getPolygon(center_r, center_θ, heading, .8)),
+                    strokeStyle: 'gray',
+                    fillStyle: 'transparent',
+                });
+                for (const whichEye of [-1, 1]) {
+                    polygons.push({
+                        depth,
+                        points: getPlayerEye(center_r, center_θ, heading, whichEye),
+                        strokeStyle: 'gray',
+                        fillStyle: 'gray',
+                    });
+                }
             }
         }
 
@@ -147,7 +173,7 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
 
     // player block 0 always faces east on the screen
     const [center_r, center_θ, centerHeading] = processBlock(
-        parentBlock, nodeIndex, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, (r, θ) => [r, θ]);
+        parentBlock, nodeIndex, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, 0, (r, θ) => [r, θ]);
 
     if (parentBlock.parentNode !== undefined) {
         // TODO this might require taking an arbitrarily high ancestor block
@@ -155,11 +181,14 @@ function render(ctx, gameMap, locationMap, animatingStep, currDir) {
         const grandparentBlock = blocks[blockIndex];
         const { D } = getParameters(p, parentBlock.q);
         const R_0 = tanh((parentBlock.minRadius + .5) * D) / tanh(D / 2);
-        processBlock(grandparentBlock, nodeIndex, -2 * π * grandparentBlock.nodes[nodeIndex].facingNeighborIndex / p,
+        processBlock(grandparentBlock, nodeIndex, -2 * π * grandparentBlock.nodes[nodeIndex].facingNeighborIndex / p, -1,
             (r, θ) => move(center_r, center_θ, atanh(Math.min(R_0 * tanh(r), 1 - ɛ)), centerHeading + θ));
     }
 
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    polygons.sort(({ depth: depth1 }, { depth: depth2 }) => depth1 - depth2);
+
+    ctx.fillStyle = VOID_COLOR;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
     for (const { points, strokeStyle, fillStyle } of polygons) {
         ctx.strokeStyle = strokeStyle;
         ctx.fillStyle = fillStyle;

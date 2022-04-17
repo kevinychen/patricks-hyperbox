@@ -5,13 +5,16 @@ interface GameMap {
     blocks: Block[];
     refs: Ref[];
     buttons: NodeCoordinate[];
+    playerButton: NodeCoordinate;
 }
 
 interface Block {
 
     q: number;
     minRadius: number;
-    color: string;
+    hue: number;
+    sat: number;
+    val: number;
     nodes: Node[];
     parentNode: NodeCoordinate;
     player: boolean;

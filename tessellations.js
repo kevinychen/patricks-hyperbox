@@ -96,7 +96,10 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
         const nextState = CONNECTION_RULES[`{${p},${q}}`][state][neighborIndex];
         if (typeof (nextState) === 'number') {
             const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * neighborIndex / p);
-            if (new_r <= max_r) {
+            if (tanh(new_r) * max(abs(cos(new_θ)), abs(sin(new_θ))) > tanh((minRadius + .5) * D)) {
+                const externalNeighborIndex = (Math.round(new_θ * p / (2 * π)) % p + p) % p;
+                polygons[nodeIndex].neighbors[neighborIndex] = { externalNeighborIndex };
+            } else if (new_r <= max_r) {
                 if (tanh(new_r) * max(abs(cos(new_θ)), abs(sin(new_θ))) < tanh((minRadius + .5) * D)) {
                     const node = { state: nextState, neighbors: new Array(p), r: new_r, θ: new_θ, heading: newHeading + π };
                     const newNodeIndex = polygons.length;
@@ -105,9 +108,6 @@ function getBoundedTessellation(p, q, max_r, minRadius) {
                     for (let i = 0; i < p; i++) {
                         helper(newNodeIndex, i);
                     }
-                } else {
-                    const externalNeighborIndex = (Math.round(new_θ * p / (2 * π)) % p + p) % p;
-                    polygons[nodeIndex].neighbors[neighborIndex] = { externalNeighborIndex };
                 }
             }
         }

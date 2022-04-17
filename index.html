@@ -21,14 +21,19 @@
 
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
-        console.log(gameMap);
-        const outerBlock = addBlockToGameMap(gameMap, undefined, undefined, Q, 3, 2, 'green', false, false);
-        const middleBlock = addBlockToGameMap(gameMap, outerBlock, [], Q, 4, 1.999, 'blue', false, false);
-        const playerBlock = addBlockToGameMap(gameMap, middleBlock, [], Q, 1, 0, 'pink', true, true);
-        const normalBlock = addBlockToGameMap(gameMap, middleBlock, [0], Q, 4, 1, 'brown', false, false);
-        const innerBlock = addBlockToGameMap(gameMap, normalBlock, [0], Q, 1, 0, 'red', true, false);
-        addButtonToGameMap(gameMap, middleBlock, [1]);
-        addWallToGameMap(middleBlock, [0, 2]);
+        const outerRoom = addBlockToGameMap(gameMap, undefined, undefined, Q, [2, 2], [120, 1, .5], false, false);
+        const middleRoom = addBlockToGameMap(gameMap, outerRoom, [], Q, [3, 2], [197, .71, .5], false, false);
+        const innerRoom = addBlockToGameMap(gameMap, middleRoom, [0, 1], Q, [3, 1], [39, 1, .5], false, false);
+        const player = addBlockToGameMap(gameMap, middleRoom, [3], Q, [1, 0], [350, 1, .75], true, true);
+        const normalBlock = addBlockToGameMap(gameMap, middleRoom, [0], Q, [1, 0], [0, .59, .4], true, false);
+        addButtonToGameMap(gameMap, innerRoom, [2]);
+        for (let nodeIndex = 10; nodeIndex <= 44; nodeIndex++) {
+            if (![22, 31, 37, 40].includes(nodeIndex)) {
+                middleRoom.nodes[nodeIndex].contents = { type: 'Wall' };
+            }
+        }
+        gameMap.blocks[player.parentNode.blockIndex].nodes[player.parentNode.nodeIndex].facingNeighborIndex = 3;
+        gameMap.playerButton = { blockIndex: 0, nodeIndex: 7 };
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');

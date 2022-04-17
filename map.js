@@ -22,12 +22,14 @@ function newGameMap(p) {
     return { p, blocks: [], refs: [], buttons: [] };
 }
 
-function addBlockToGameMap(gameMap, parentBlock, path, q, max_r, minRadius, color, fillWithWalls, player) {
+function addBlockToGameMap(gameMap, parentBlock, path, q, [max_r, minRadius], [hue, sat, val], fillWithWalls, player) {
     const blockIndex = gameMap.blocks.length;
     const block = {
         q,
         minRadius,
-        color,
+        hue,
+        sat,
+        val,
         nodes: getBoundedTessellation(gameMap.p, q, max_r, minRadius)
             .map((polygon, i) => ({
                 neighbors: polygon.neighbors,
@@ -156,10 +158,12 @@ function movePlayer(gameMap, dir) {
 }
 
 function isWin(gameMap) {
-    const { blocks, refs, buttons } = gameMap;
-    return buttons.every(({ blockIndex, nodeIndex }) => {
-        const node = blocks[blockIndex].nodes[nodeIndex];
-        return (node.contents.type === 'Block' && !blocks[node.contents.index].player)
-            || (node.contents.type === 'Ref' && !blocks[refs[node.contents.index].blockId].player);
-    });
+    const { blocks, buttons, playerButton } = gameMap;
+    const { blockIndex, nodeIndex } = playerButton;
+    const node = blocks[blockIndex].nodes[nodeIndex];
+    return (node.contents.type === 'Block' && blocks[node.contents.index].player)
+        && buttons.every(({ blockIndex, nodeIndex }) => {
+            const node = blocks[blockIndex].nodes[nodeIndex];
+            return node.contents.type === 'Block' && !blocks[node.contents.index].player;
+        });
 }
