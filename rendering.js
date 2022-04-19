@@ -13,7 +13,7 @@ function beltramiKleinProjection(r, θ) {
     return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
 }
 
-function render(canvas, gameMap, locationMap, animatingStep, currDir) {
+function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlockIndex) {
     const { p, blocks, refs, buttons, playerButton } = gameMap;
 
     function animate(key, points) {
@@ -45,6 +45,7 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir) {
         if (processedBlocks.has(block)) {
             return processedBlocks.get(block);
         }
+        processedBlocks.set(block, []);
 
         function getPolygon(center_r, center_θ, heading, scale = 1) {
             const points = [];
@@ -173,7 +174,9 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir) {
         return;
     }
     const playerRef = refs.find(ref => blocks[ref.blockIndex].player);
-    const { blockIndex, nodeIndex } = playerRef === undefined ? blocks[0].nodes[0].coordinate : playerRef.parentNode;
+    const { blockIndex, nodeIndex } = startBlockIndex !== undefined
+        ? blocks[startBlockIndex].nodes[0].coordinate
+        : (playerRef !== undefined ? playerRef.parentNode : blocks[0].nodes[0].coordinate);
     const parentBlock = blocks[blockIndex];
 
     // player block 0 always faces east on the screen

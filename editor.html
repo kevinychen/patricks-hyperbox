@@ -9,7 +9,7 @@
         }
 
         .group {
-            margin-right: 20px;
+            margin-right: 10px;
         }
 
         canvas {
@@ -31,7 +31,7 @@
     </div>
     <div>
         <span id="block-select"></span>
-        <input type="button" value="+" onclick="addBlockToGameMap(gameMap, {}); updateHtml();" />
+        <input type="button" value="+" onclick="createNewBlock();" />
     </div>
     <div id="block-info"></div>
     <canvas id="canvas"></canvas>
@@ -66,28 +66,60 @@
             downloadLink.click();
         }
 
+        function createNewBlock() {
+            addBlockToGameMap(gameMap, {});
+            selectedBlock = gameMap.blocks.length - 1;
+            updateHtml();
+        }
+
         function updateBlockSelect() {
             let innerHTML = '';
             for (let i = 0; i < gameMap.blocks.length; i++) {
                 const style = i === selectedBlock ? 'class="selected"' : '';
-                innerHTML += `<input type="button" ${style} value="Block ${i+1}" onclick="selectedBlock = ${i}; updateHtml();" />`;
+                innerHTML += `<input type="button" ${style} value="Block ${i + 1}" onclick="selectedBlock = ${i}; updateHtml();" />`;
             }
             document.getElementById('block-select').innerHTML = innerHTML;
         }
 
+        function updateBlock(newProperties) {
+            updateBlockInGameMap(gameMap, gameMap.blocks[selectedBlock], newProperties);
+        }
+
         function updateBlockInfo() {
             let innerHTML = '';
-            // TODO make these fields editable
             if (selectedBlock < gameMap.blocks.length) {
                 const block = gameMap.blocks[selectedBlock];
-                innerHTML += `<span class="group">Squares per vertex: ${block.q}</span>`;
-                innerHTML += `<span class="group">Max distance: ${block.max_r}</span>`;
-                innerHTML += `<span class="group">Min steps to exit: ${block.max_r}</span>`;
-                innerHTML += `<span class="group">Hue: ${block.hue}</span>`;
-                innerHTML += `<span class="group">Sat: ${block.sat}</span>`;
-                innerHTML += `<span class="group">Val: ${block.val}</span>`;
-                innerHTML += `<span class="group">Is player: ${block.player ? 'Yes' : 'No'}</span>`;
-                innerHTML += `<input type="button" value="Delete block" onclick="TODO; updateHtml();" />`;
+                innerHTML = `
+<span class="group">
+    Squares per vertex: <input type="number" min="5" max="7" value="${block.q}"
+    onchange="updateBlock({max_r: parseInt(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Max distance: <input type="number" min="1.0" max="6.0" value="${block.max_r}"
+    onchange="updateBlock({max_r: parseFloat(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Min steps to exit: <input type="number" min="0" max="5" value="${block.minRadius}"
+    onchange="updateBlock({minRadius: parseInt(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Hue: <input type="number" min="0" max="359" value="${block.hue}"
+    onchange="updateBlock({hue: parseInt(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Sat: <input type="number" min="0" max="1.00" value="${block.sat}"
+    onchange="updateBlock({hue: parseFloat(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Val: <input type="number" min="0" max="1.00" value="${block.val}"
+    onchange="updateBlock({hue: parseFloat(value)}); updateHtml();" />
+</span>
+<span class="group">
+    Is player: <input type="button" value="${block.player ? 'Yes' : 'No'}"
+    onclick="updateBlock({player: value === 'No'}); updateHtml();"/>
+</span>
+<input type="button" value="Delete block" onclick="TODO; updateHtml();" />
+                `;
             }
             document.getElementById('block-info').innerHTML = innerHTML;
         }
@@ -95,7 +127,13 @@
         function updateHtml() {
             updateBlockSelect();
             updateBlockInfo();
-            render(canvas, gameMap, new Map(), 0);
+
+            // temporarily render the block as if it's in space
+            const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
+            addRefToGameMap(gameMap, space, [], gameMap.blocks[selectedBlock], true);
+            render(canvas, gameMap, new Map(), 0, undefined, selectedBlock);
+            gameMap.blocks.pop();
+            gameMap.refs.pop();
         }
 
         updateHtml();

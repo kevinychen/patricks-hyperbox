@@ -45,11 +45,11 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     if (q !== undefined || max_r !== undefined || minRadius !== undefined || fillWithWalls !== undefined) {
         // TODO delete block refs and button refs in old block.nodes,
         // and even better: keep existing nodes if their path is still present in the new block
-        block.nodes = getBoundedTessellation(p, q, max_r, minRadius)
+        block.nodes = getBoundedTessellation(p, block.q, block.max_r, block.minRadius)
             .map((polygon, i) => ({
                 neighbors: polygon.neighbors,
                 coordinate: { blockIndex, nodeIndex: i },
-                contents: { type: fillWithWalls ? 'Wall' : 'Empty' },
+                contents: { type: block.fillWithWalls ? 'Wall' : 'Empty' },
                 facingNeighborIndex: 0,
             }));
     }
