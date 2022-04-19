@@ -14,7 +14,7 @@ function beltramiKleinProjection(r, θ) {
 }
 
 function render(canvas, gameMap, locationMap, animatingStep, currDir) {
-    const { p, blocks, buttons, playerButton } = gameMap;
+    const { p, blocks, refs, buttons, playerButton } = gameMap;
 
     function animate(key, points) {
         if (animatingStep === 0) {
@@ -91,8 +91,8 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir) {
                 fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
             });
 
-            if (node.contents.type === 'Block') {
-                const block = blocks[node.contents.index];
+            if (node.contents.type === 'Ref') {
+                const block = blocks[refs[node.contents.index].blockIndex];
                 const headingAdjustment = 2 * π * node.facingNeighborIndex / p;
                 // R_0 is the ratio of length of a square in the Beltrami-Klein projection of this block,
                 // to the length of the smallest square containing the projection of the entire block.
@@ -172,17 +172,18 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir) {
     if (blocks.length === 0) {
         return;
     }
-    const playerBlock = blocks.find(block => block.player);
-    const { blockIndex, nodeIndex } = playerBlock === undefined ? blocks[0].nodes[0].coordinate : playerBlock.parentNode;
+    const playerRef = refs.find(ref => blocks[ref.blockIndex].player);
+    const { blockIndex, nodeIndex } = playerRef === undefined ? blocks[0].nodes[0].coordinate : playerRef.parentNode;
     const parentBlock = blocks[blockIndex];
 
     // player block 0 always faces east on the screen
     const [center_r, center_θ, centerHeading] = processBlock(
         parentBlock, nodeIndex, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, 0, (r, θ) => [r, θ]);
 
-    if (parentBlock.parentNode !== undefined) {
+    const parentRef = refs.find(ref => ref.exitBlock && ref.blockIndex === blockIndex);
+    if (parentRef !== undefined) {
         // TODO this might require taking an arbitrarily high ancestor block
-        const { blockIndex, nodeIndex } = parentBlock.parentNode;
+        const { blockIndex, nodeIndex } = parentRef.parentNode;
         const grandparentBlock = blocks[blockIndex];
         const { D } = getParameters(p, parentBlock.q);
         const R_0 = tanh((parentBlock.minRadius + .5) * D) / tanh(D / 2);

@@ -16,14 +16,15 @@ interface Block {
     hue: number;
     sat: number;
     val: number;
-    nodes: Node[];
-    parentNode: NodeCoordinate;
+    fillWithWalls: boolean;
     player: boolean;
+    nodes: Node[];
 }
 
 interface Ref {
 
-    blockId: number;
+    blockIndex: number;
+    parentNode: NodeCoordinate;
     exitBlock: boolean;
 }
 
@@ -32,8 +33,7 @@ interface Node {
     neighbors: (Neighbor | ExternalNeighbor)[];
     coordinate: NodeCoordinate;
 
-    contents: { index: BlockIndex, type: 'Block' }
-        | { index: RefIndex, type: 'Ref' }
+    contents: { index: RefIndex, type: 'Ref' }
         | { type: 'Wall' }
         | { type: 'Empty' }
     facingNeighborIndex: number;

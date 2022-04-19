@@ -37,18 +37,24 @@
 
         const P = 4, Q = 5;
         const gameMap = newGameMap(P);
-        const outerRoom = addBlockToGameMap(gameMap, undefined, undefined, Q, [2, 2], [120, 1, .5], false, false);
-        const middleRoom = addBlockToGameMap(gameMap, outerRoom, [], Q, [3, 2], [197, .71, .5], false, false);
-        const innerRoom = addBlockToGameMap(gameMap, middleRoom, [0, 1], Q, [3, 1], [39, 1, .5], false, false);
-        const player = addBlockToGameMap(gameMap, middleRoom, [3], Q, [1, 0], [350, 1, .75], true, true);
-        const normalBlock = addBlockToGameMap(gameMap, middleRoom, [0], Q, [1, 0], [0, .59, .4], true, false);
+        const outerRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 2, minRadius: 2, hue: 120, sat: 1, val: .5 });
+        const middleRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 3, minRadius: 2, hue: 197, sat: .71, val: .5 });
+        const innerRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 3, minRadius: 1, hue: 39, sat: 1, val: .5 });
+        const player = addBlockToGameMap(
+            gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 350, sat: 1, val: .75, fillWithWalls: true, player: true });
+        const normalBlock = addBlockToGameMap(
+            gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 0, sat: .59, val: .4, fillWithWalls: true });
+        addRefToGameMap(gameMap, outerRoom, [], middleRoom, true);
+        addRefToGameMap(gameMap, middleRoom, [0, 1], innerRoom, true);
+        addRefToGameMap(gameMap, middleRoom, [3], player, true);
+        addRefToGameMap(gameMap, middleRoom, [0], normalBlock, true);
         addButtonToGameMap(gameMap, innerRoom, [2]);
         for (let nodeIndex = 10; nodeIndex <= 44; nodeIndex++) {
             if (![22, 31, 37, 40].includes(nodeIndex)) {
                 middleRoom.nodes[nodeIndex].contents = { type: 'Wall' };
             }
         }
-        gameMap.blocks[player.parentNode.blockIndex].nodes[player.parentNode.nodeIndex].facingNeighborIndex = 3;
+        getNode(middleRoom, [3]).facingNeighborIndex = 3;
         gameMap.playerButton = { blockIndex: 0, nodeIndex: 7 };
 
         const canvas = document.getElementById('canvas');
@@ -71,18 +77,21 @@
         }
 
         function moveDir(dir) {
-            if (dir === undefined || animatingStep !== 0) {
+            if (animatingStep !== 0) {
                 return;
             }
             movePlayer(gameMap, dir);
             animatingStep = NUM_ANIMATION_STEPS;
             currDir = dir;
             animate();
-            e.preventDefault();
         }
 
-        document.addEventListener('keydown', e =>
-            moveDir({ ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code]));
+        document.addEventListener('keydown', e => {
+            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            if (dir !== undefined) {
+                moveDir(dir);
+            }
+        });
     </script>
 </body>
 
