@@ -49,6 +49,7 @@
     <script src="./tessellations.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
+    <script src="./serialization.js"></script>
     <script>
         const P = 4;
         let gameMap = newGameMap(P);
@@ -72,9 +73,8 @@
         });
 
         function download() {
-            const serializedGameMap = 'TODO';
             const downloadLink = document.getElementById('download');
-            downloadLink.href = window.URL.createObjectURL(new Blob([serializedGameMap], { type: 'text/plain' }));
+            downloadLink.href = window.URL.createObjectURL(new Blob([serialize(gameMap)], { type: 'text/plain' }));
             downloadLink.click();
         }
 
@@ -91,7 +91,7 @@
             if (coordinate !== undefined) {
                 const { blockIndex, nodeIndex } = coordinate;
                 const [ label, type, childBlock ] = selectableItems[selectedItem];
-                updateNodeContents(gameMap, blockIndex, nodeIndex, type, childBlock);
+                updateContents(gameMap, blockIndex, nodeIndex, type, childBlock);
                 updateHtml();
             }
         });
@@ -174,7 +174,7 @@
 
             // TODO temporarily render the block as if it's in space
             const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
-            updateNodeContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', gameMap.blocks[selectedBlock]);
+            updateContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', gameMap.blocks[selectedBlock]);
             polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlock);
             render(canvas, polygons);
             gameMap.blocks.pop();

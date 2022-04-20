@@ -42,6 +42,7 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
 
         let centerPosition = undefined;
 
+        // TODO this isn't correct, only return early if we're rendering the same ref
         if (processedBlocks.has(block)) {
             return processedBlocks.get(block);
         }
@@ -221,6 +222,7 @@ function findContainingNode(polygons, x, y) {
         return inside;
     }
 
+    // TODO only filter to blocks at the current depth, so that you can change a block's containing node
     for (let i = polygons.length - 1; i >= 0; i--) {
         const { points, coordinate } = polygons[i];
         if (coordinate !== undefined && isInsidePolygon(points)) {

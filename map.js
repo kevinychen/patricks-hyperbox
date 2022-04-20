@@ -59,7 +59,7 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     }
 }
 
-function updateNodeContents(gameMap, blockIndex, nodeIndex, type, childBlock) {
+function updateContents(gameMap, blockIndex, nodeIndex, type, childBlock) {
     const { blocks, refs, buttons, playerButton } = gameMap;
     const node = blocks[blockIndex].nodes[nodeIndex];
 

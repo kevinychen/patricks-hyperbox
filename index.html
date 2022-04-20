@@ -44,14 +44,14 @@
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 350, sat: 1, val: .75, fillWithWalls: true, player: true });
         const normalBlock = addBlockToGameMap(
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 0, sat: .59, val: .4, fillWithWalls: true });
-        const niceUpdateNodeContents = (gameMap, block, path, type, childBlock) =>
-            updateNodeContents(gameMap, gameMap.blocks.findIndex(b => b === block), getNodeIndex(block, path), type, childBlock);
-        niceUpdateNodeContents(gameMap, outerRoom, [], 'Ref', middleRoom);
-        niceUpdateNodeContents(gameMap, middleRoom, [0, 1], 'Ref', innerRoom);
-        niceUpdateNodeContents(gameMap, middleRoom, [3], 'Ref', player);
-        niceUpdateNodeContents(gameMap, middleRoom, [0], 'Ref', normalBlock);
-        niceUpdateNodeContents(gameMap, innerRoom, [2], 'Button');
-        niceUpdateNodeContents(gameMap, outerRoom, [1], 'PlayerButton');
+        const niceUpdateContents = (gameMap, block, path, type, childBlock) =>
+            updateContents(gameMap, gameMap.blocks.findIndex(b => b === block), getNodeIndex(block, path), type, childBlock);
+        niceUpdateContents(gameMap, outerRoom, [], 'Ref', middleRoom);
+        niceUpdateContents(gameMap, middleRoom, [0, 1], 'Ref', innerRoom);
+        niceUpdateContents(gameMap, middleRoom, [3], 'Ref', player);
+        niceUpdateContents(gameMap, middleRoom, [0], 'Ref', normalBlock);
+        niceUpdateContents(gameMap, innerRoom, [2], 'Button');
+        niceUpdateContents(gameMap, outerRoom, [1], 'PlayerButton');
         const wallPaths = [
             [0, 1, 2], [0, 1, 2, 1], [0, 1, 2, 1, 0], [0, 2], [0, 2, 1], [0, 2, 1, 1], [0, 2, 3],
             [0, 2, 3, 3], [2, 3, 2], [2, 3, 2, 3], [2, 3, 2, 3, 3], [2, 2], [2, 2, 3], [2, 2, 3, 3],
@@ -60,7 +60,7 @@
             [3, 2, 1], [3, 2, 1, 1], [3, 2, 3], [3, 2, 3, 3],
         ];
         for (const path of wallPaths) {
-            niceUpdateNodeContents(gameMap, middleRoom, path, 'Wall');
+            niceUpdateContents(gameMap, middleRoom, path, 'Wall');
         }
         getNode(middleRoom, [3]).facingNeighborIndex = 3;
 
