@@ -13,7 +13,7 @@ function beltramiKleinProjection(r, θ) {
     return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
 }
 
-function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlockIndex) {
+function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockIndex) {
     const { p, blocks, refs, buttons, playerButton } = gameMap;
 
     function animate(key, points) {
@@ -90,6 +90,7 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlock
                 points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
                 strokeStyle: `hsl(${hue},${100 * sat}%,50%)`,
                 fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
+                coordinate: node.coordinate,
             });
 
             if (node.contents.type === 'Ref') {
@@ -193,7 +194,43 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlock
     }
 
     polygons.sort(({ depth: depth1 }, { depth: depth2 }) => depth1 - depth2);
+    return polygons;
+}
 
+function findContainingNode(polygons, x, y) {
+    const crossProduct = (x1, y1, x2, y2) => x1 * y2 - x2 * y1;
+
+    // Returns 1 or -1, depending on the side that (x, y) is on relative to the line through (x1, y1) and (x2, y2).
+    const whichSide = (x1, y1, x2, y2, x, y) => Math.sign(crossProduct(x2 - x1, y2 - y1, x - x1, y - y1));
+
+    // whether the line segment from (x1, y1) to (x2, y2) intersects the segment from (x3, y3) to (x4, y4)
+    const intersects = (x1, y1, x2, y2, x3, y3, x4, y4) =>
+        (whichSide(x1, y1, x2, y2, x3, y3) != whichSide(x1, y1, x2, y2, x4, y4))
+        && (whichSide(x3, y3, x4, y4, x1, y1) != whichSide(x3, y3, x4, y4, x2, y2));
+
+    // use a random exterior point to avoid edge cases
+    const external_x = Math.random() * WIDTH, external_y = -100;
+
+    function isInsidePolygon(points) {
+        let inside = false;
+        for (let i = 0; i < points.length; i++) {
+            if (intersects(...points[i], ...points[(i + 1) % points.length], x, y, external_x, external_y)) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    for (let i = polygons.length - 1; i >= 0; i--) {
+        const { points, coordinate } = polygons[i];
+        if (coordinate !== undefined && isInsidePolygon(points)) {
+            return coordinate;
+        }
+    }
+    return undefined;
+}
+
+function render(canvas, polygons) {
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = VOID_COLOR;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
