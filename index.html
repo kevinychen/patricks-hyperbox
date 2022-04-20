@@ -44,8 +44,8 @@
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 350, sat: 1, val: .75, fillWithWalls: true, player: true });
         const normalBlock = addBlockToGameMap(
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 0, sat: .59, val: .4, fillWithWalls: true });
-        const niceUpdateContents = (gameMap, block, path, type, childBlock) =>
-            updateContents(gameMap, gameMap.blocks.findIndex(b => b === block), getNodeIndex(block, path), type, childBlock);
+        const niceUpdateContents = (gameMap, block, path, type, childBlock) => updateContents(
+            gameMap, gameMap.blocks.findIndex(b => b === block), getNodeIndex(block, path), type, gameMap.blocks.findIndex(b => b === childBlock));
         niceUpdateContents(gameMap, outerRoom, [], 'Ref', middleRoom);
         niceUpdateContents(gameMap, middleRoom, [0, 1], 'Ref', innerRoom);
         niceUpdateContents(gameMap, middleRoom, [3], 'Ref', player);

@@ -47,5 +47,46 @@ function serialize(gameMap) {
 }
 
 function deserialize(serialized) {
-    // TODO
+    const tokens = serialized.split(/\s+/);
+    const gameMap = newGameMap(4);
+    let index = 3;
+    let currentBlockIndex = -1;
+    while (index < tokens.length) {
+        if (tokens[index] === 'Block') {
+            addBlockToGameMap(gameMap, {
+                max_r: parseFloat(tokens[index + 1]),
+                minRadius: parseInt(tokens[index + 2]),
+                hue: parseInt(tokens[index + 3]),
+                sat: parseFloat(tokens[index + 4]),
+                val: parseFloat(tokens[index + 5]),
+                fillWithWalls: tokens[index + 6] !== '0',
+                player: tokens[index + 7] !== '0',
+            });
+            index += 8;
+            currentBlockIndex++;
+        } else if (tokens[index] === 'Ref') {
+            const nodeIndex = tokens[index + 1];
+            const blockIndex = tokens[index + 2];
+            const exitBlock = tokens[index + 3];
+            updateContents(gameMap, currentBlockIndex, nodeIndex, 'Ref', blockIndex);
+            gameMap.refs[gameMap.refs.length - 1].exitBlock = exitBlock;
+            index += 4;
+        } else if (tokens[index] === 'Wall') {
+            const nodeIndex = tokens[index + 1];
+            updateContents(gameMap, currentBlockIndex, nodeIndex, 'Wall');
+            index += 2;
+        } else if (tokens[index] === 'Floor') {
+            const nodeIndex = tokens[index + 1];
+            const type = tokens[index + 2];
+            if (type === 'Button') {
+                gameMap.buttons.push({ blockIndex: currentBlockIndex, nodeIndex });
+            } else if (type === 'Button') {
+                gameMap.playerButton = { blockIndex: currentBlockIndex, nodeIndex };
+            }
+            index += 3;
+        } else {
+            break;
+        }
+    }
+    return gameMap;
 }

@@ -53,7 +53,7 @@
     <script>
         const P = 4;
         let gameMap = newGameMap(P);
-        let selectedBlock = 0;
+        let selectedBlockIndex = 0;
         let selectableItems = [];
         let selectedItem = 0;
         let polygons = undefined;
@@ -65,8 +65,8 @@
         document.getElementById('load').addEventListener('change', e => {
             const reader = new FileReader();
             reader.onload = function() {
-                // TODO deserialize into game map
-                console.log(reader.result);
+                gameMap = deserialize(reader.result);
+                selectedBlockIndex = 0;
                 updateHtml();
             };
             reader.readAsText(e.target.files[0]);
@@ -80,7 +80,7 @@
 
         function createNewBlock() {
             addBlockToGameMap(gameMap, {});
-            selectedBlock = gameMap.blocks.length - 1;
+            selectedBlockIndex = gameMap.blocks.length - 1;
             updateHtml();
         }
 
@@ -90,8 +90,8 @@
             const coordinate = findContainingNode(polygons, x, y);
             if (coordinate !== undefined) {
                 const { blockIndex, nodeIndex } = coordinate;
-                const [ label, type, childBlock ] = selectableItems[selectedItem];
-                updateContents(gameMap, blockIndex, nodeIndex, type, childBlock);
+                const [ label, type, childBlockIndex ] = selectableItems[selectedItem];
+                updateContents(gameMap, blockIndex, nodeIndex, type, childBlockIndex);
                 updateHtml();
             }
         });
@@ -99,20 +99,20 @@
         function updateBlockSelect() {
             let innerHTML = '';
             for (let i = 0; i < gameMap.blocks.length; i++) {
-                const style = i === selectedBlock ? 'class="selected"' : '';
-                innerHTML += `<input type="button" ${style} value="Block ${i + 1}" onclick="selectedBlock = ${i}; updateHtml();" />`;
+                const style = i === selectedBlockIndex ? 'class="selected"' : '';
+                innerHTML += `<input type="button" ${style} value="Block ${i + 1}" onclick="selectedBlockIndex = ${i}; updateHtml();" />`;
             }
             document.getElementById('block-select').innerHTML = innerHTML;
         }
 
         function updateBlock(newProperties) {
-            updateBlockInGameMap(gameMap, gameMap.blocks[selectedBlock], newProperties);
+            updateBlockInGameMap(gameMap, gameMap.blocks[selectedBlockIndex], newProperties);
         }
 
         function updateBlockInfo() {
             let innerHTML = '';
-            if (selectedBlock < gameMap.blocks.length) {
-                const block = gameMap.blocks[selectedBlock];
+            if (selectedBlockIndex < gameMap.blocks.length) {
+                const block = gameMap.blocks[selectedBlockIndex];
                 innerHTML = `
 <span class="group">
     Squares per vertex: <input type="number" min="5" max="7" value="${block.q}"
@@ -156,11 +156,11 @@
                 ['Player button', 'PlayerButton', undefined],
             ];
             for (let i = 0; i < gameMap.blocks.length; i++) {
-                selectableItems.push([`Block ${i+1}`, 'Ref', gameMap.blocks[i]]);
+                selectableItems.push([`Block ${i+1}`, 'Ref', i]);
             }
             let innerHTML = '';
             for (let i = 0; i < selectableItems.length; i++) {
-                const [ label, type, childBlock ] = selectableItems[i];
+                const [ label, type, childBlockIndex ] = selectableItems[i];
                 const style = i === selectedItem ? 'class="selected"' : '';
                 innerHTML += `<input type="button" ${style} value="${label}" onclick="selectedItem = ${i}; updateHtml();" />`;
             }
@@ -174,8 +174,8 @@
 
             // TODO temporarily render the block as if it's in space
             const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
-            updateContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', gameMap.blocks[selectedBlock]);
-            polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlock);
+            updateContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', selectedBlockIndex);
+            polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlockIndex);
             render(canvas, polygons);
             gameMap.blocks.pop();
             gameMap.refs.pop();

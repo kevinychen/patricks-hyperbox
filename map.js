@@ -59,9 +59,9 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     }
 }
 
-function updateContents(gameMap, blockIndex, nodeIndex, type, childBlock) {
+function updateContents(gameMap, parentBlockIndex, nodeIndex, type, childBlockIndex) {
     const { blocks, refs, buttons, playerButton } = gameMap;
-    const node = blocks[blockIndex].nodes[nodeIndex];
+    const node = blocks[parentBlockIndex].nodes[nodeIndex];
 
     // Delete whatever is currently in the node
     if (node.contents.type === 'Ref') {
@@ -84,7 +84,7 @@ function updateContents(gameMap, blockIndex, nodeIndex, type, childBlock) {
     if (type === 'Ref') {
         const refIndex = refs.length;
         const ref = {
-            blockIndex: blocks.findIndex(block => block === childBlock),
+            blockIndex: childBlockIndex,
             parentNode: node.coordinate,
             exitBlock: true,
         };
