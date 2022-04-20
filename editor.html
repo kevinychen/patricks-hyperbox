@@ -4,6 +4,10 @@
     <title>Patrick's Hyperbox editor</title>
     <meta charset="UTF-8">
     <style>
+        div {
+            margin-bottom: 5px;
+        }
+
         .selected {
             font-weight: bold;
         }
@@ -27,15 +31,20 @@
         <input type="button" value="Load" onclick="document.getElementById('load').click();" />
 
         <a id="download" download="hyperbox.txt" style="display:none;"></a>
-        <input type="button" value="Download" onclick="download();" />
+        <input type="button" value="Save" onclick="download();" />
     </div>
+    <hr>
     <div>
         <span id="block-select"></span>
-        <input type="button" value="+" onclick="createNewBlock();" />
+        <input type="button" value="Add new block" onclick="createNewBlock();" />
     </div>
     <div id="block-info"></div>
+    <hr>
+    <div>
+        <span>Select item to add: </span>
+        <span id="item-select"></span>
+    </div>
     <canvas id="canvas"></canvas>
-    <div id="item-select"></div>
 
     <script src="./tessellations.js"></script>
     <script src="./map.js"></script>
@@ -44,6 +53,7 @@
         const P = 4;
         let gameMap = newGameMap(P);
         let selectedBlock = 0;
+        let selectedItem = 0;
 
         const canvas = document.getElementById('canvas');
         canvas.width = WIDTH;
@@ -124,13 +134,33 @@
             document.getElementById('block-info').innerHTML = innerHTML;
         }
 
+        function updateItemSelect() {
+            const items = [
+                ['Empty space', 'Empty', undefined],
+                ['Wall', 'Wall', undefined],
+                ['Button', 'Button', undefined],
+                ['Player button', 'PlayerButton', undefined],
+            ];
+            for (let i = 0; i < gameMap.blocks.length; i++) {
+                items.push([`Block ${i+1}`, 'Ref', gameMap.blocks[i]]);
+            }
+            let innerHTML = '';
+            for (let i = 0; i < items.length; i++) {
+                const [label, type, childBlock] = items[i];
+                const style = i === selectedItem ? 'class="selected"' : '';
+                innerHTML += `<input type="button" ${style} value="${label}" onclick="selectedItem = ${i}; updateHtml();" />`;
+            }
+            document.getElementById('item-select').innerHTML = innerHTML;
+        }
+
         function updateHtml() {
             updateBlockSelect();
             updateBlockInfo();
+            updateItemSelect();
 
-            // temporarily render the block as if it's in space
+            // TODO temporarily render the block as if it's in space
             const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
-            addRefToGameMap(gameMap, space, [], gameMap.blocks[selectedBlock], true);
+            updateNodeContents(gameMap, space, [], 'Ref', gameMap.blocks[selectedBlock]);
             render(canvas, gameMap, new Map(), 0, undefined, selectedBlock);
             gameMap.blocks.pop();
             gameMap.refs.pop();

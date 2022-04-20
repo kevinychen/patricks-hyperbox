@@ -118,9 +118,7 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlock
                 }
             }
 
-            const equalsCoordinate = ({ blockIndex, nodeIndex }) =>
-                blockIndex === node.coordinate.blockIndex && nodeIndex === node.coordinate.nodeIndex;
-            const button = buttons.find(equalsCoordinate);
+            const button = buttons.find(b => sameCoordinate(node.coordinate, b));
             if (button !== undefined) {
                 polygons.push({
                     depth,
@@ -129,7 +127,7 @@ function render(canvas, gameMap, locationMap, animatingStep, currDir, startBlock
                     fillStyle: 'transparent',
                 });
             }
-            if (playerButton !== undefined && equalsCoordinate(playerButton)) {
+            if (playerButton !== undefined && sameCoordinate(node.coordinate, playerButton)) {
                 polygons.push({
                     depth,
                     points: animate(playerButton, getPolygon(center_r, center_θ, heading, .8)),

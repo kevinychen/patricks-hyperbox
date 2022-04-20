@@ -2,6 +2,10 @@
  * Logic related to game bootstrapping and play mechanics. See types.ts for typings.
  */
 
+function sameCoordinate(coordinate1, coordinate2) {
+    return coordinate1.blockIndex === coordinate2.blockIndex && coordinate1.nodeIndex === coordinate2.nodeIndex;
+}
+
 function getNodeIndex(block, path) {
     let nodeIndex = 0;
     for (let neighborIndex of path) {
@@ -55,22 +59,49 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     }
 }
 
-function addRefToGameMap(gameMap, parentBlock, path, childBlock, exitBlock) {
-    const { blocks, refs } = gameMap;
-    const blockIndex = blocks.findIndex(block => block === parentBlock);
-    const nodeIndex = getNodeIndex(parentBlock, path);
-    const refIndex = refs.length;
-    const ref = {
-        blockIndex: blocks.findIndex(block => block === childBlock),
-        parentNode: { blockIndex, nodeIndex },
-        exitBlock,
-    };
-    refs.push(ref);
-    parentBlock.nodes[nodeIndex].contents = { index: refIndex, type: 'Ref' };
-}
+function updateNodeContents(gameMap, parentBlock, path, type, childBlock = undefined) {
+    const { blocks, refs, buttons, playerButton } = gameMap;
+    const node = getNode(parentBlock, path);
 
-function addButtonToGameMap(gameMap, block, path) {
-    gameMap.buttons.push({ ...getNode(block, path).coordinate });
+    // Delete whatever is currently in the node
+    if (node.contents.type === 'Ref') {
+        const lastRef = refs.pop();
+        if (node.contents.index < refs.length) {
+            const { blockIndex, nodeIndex } = lastRef.parentNode;
+            refs[node.contents.index] = lastRef;
+            blocks[blockIndex].nodes[nodeIndex].contents.index = node.contents.index;
+        }
+    }
+    const buttonIndex = buttons.findIndex(b => sameCoordinate(node.coordinate, b));
+    if (buttonIndex >= 0) {
+        buttons.splice(buttonIndex, 1);
+    }
+    if (playerButton !== undefined && sameCoordinate(node.coordinate, playerButton)) {
+        playerButton = undefined;
+    }
+
+    // Add the new contents
+    if (type === 'Ref') {
+        const refIndex = refs.length;
+        const ref = {
+            blockIndex: blocks.findIndex(block => block === childBlock),
+            parentNode: node.coordinate,
+            exitBlock: true,
+        };
+        refs.push(ref);
+        node.contents = { index: refIndex, type: 'Ref' };
+    } else if (type === 'Wall') {
+        node.contents = { type: 'Wall' };
+    } else if (type === 'Button') {
+        node.contents = { type: 'Empty' };
+        // TODO animations depend on this being a clone, not the same object (ditto for PlayerButton below)
+        buttons.push({ ...node.coordinate });
+    } else if (type === 'PlayerButton') {
+        node.contents = { type: 'Empty' };
+        gameMap.playerButton = { ...node.coordinate };
+    } else {
+        node.contents = { type: 'Empty' };
+    }
 }
 
 function moveContents(gameMap, startNode, newNode, neighborIndex, returnNeighborIndex, nodeMoveMap) {

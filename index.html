@@ -44,18 +44,23 @@
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 350, sat: 1, val: .75, fillWithWalls: true, player: true });
         const normalBlock = addBlockToGameMap(
             gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 0, sat: .59, val: .4, fillWithWalls: true });
-        addRefToGameMap(gameMap, outerRoom, [], middleRoom, true);
-        addRefToGameMap(gameMap, middleRoom, [0, 1], innerRoom, true);
-        addRefToGameMap(gameMap, middleRoom, [3], player, true);
-        addRefToGameMap(gameMap, middleRoom, [0], normalBlock, true);
-        addButtonToGameMap(gameMap, innerRoom, [2]);
-        for (let nodeIndex = 10; nodeIndex <= 44; nodeIndex++) {
-            if (![22, 31, 37, 40].includes(nodeIndex)) {
-                middleRoom.nodes[nodeIndex].contents = { type: 'Wall' };
-            }
+        updateNodeContents(gameMap, outerRoom, [], 'Ref', middleRoom);
+        updateNodeContents(gameMap, middleRoom, [0, 1], 'Ref', innerRoom);
+        updateNodeContents(gameMap, middleRoom, [3], 'Ref', player);
+        updateNodeContents(gameMap, middleRoom, [0], 'Ref', normalBlock);
+        updateNodeContents(gameMap, innerRoom, [2], 'Button');
+        updateNodeContents(gameMap, outerRoom, [1], 'PlayerButton');
+        const wallPaths = [
+            [0, 1, 2], [0, 1, 2, 1], [0, 1, 2, 1, 0], [0, 2], [0, 2, 1], [0, 2, 1, 1], [0, 2, 3],
+            [0, 2, 3, 3], [2, 3, 2], [2, 3, 2, 3], [2, 3, 2, 3, 3], [2, 2], [2, 2, 3], [2, 2, 3, 3],
+            [2, 2, 1], [2, 2, 1, 1], [1, 2], [1, 2, 1], [1, 2, 1, 1], [1, 2, 3], [1, 2, 3, 3],
+            [1, 1, 2], [1, 1, 2, 1], [1, 1, 2, 1, 0], [1, 3, 2], [1, 3, 2, 3], [1, 3, 2, 3, 3],
+            [3, 2, 1], [3, 2, 1, 1], [3, 2, 3], [3, 2, 3, 3],
+        ];
+        for (const path of wallPaths) {
+            updateNodeContents(gameMap, middleRoom, path, 'Wall');
         }
         getNode(middleRoom, [3]).facingNeighborIndex = 3;
-        gameMap.playerButton = { blockIndex: 0, nodeIndex: 7 };
 
         const canvas = document.getElementById('canvas');
         canvas.width = WIDTH;
