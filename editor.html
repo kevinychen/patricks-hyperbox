@@ -41,8 +41,14 @@
     <div id="block-info"></div>
     <hr>
     <div>
-        <span>Select item to add: </span>
-        <span id="item-select"></span>
+        <span class="group">
+            <span>Add: </span>
+            <span id="item-select"></span>
+        </span>
+        <span class="group">
+            <span>Change: </span>
+            <span id="action-select"></span>
+        </span>
     </div>
     <canvas id="canvas"></canvas>
 
@@ -55,7 +61,9 @@
         let gameMap = newGameMap(P);
         let selectedBlockIndex = 0;
         let selectableItems = [];
-        let selectedItem = 0;
+        let selectableActions = [];
+        let selectionType = 0;
+        let selectionIndex = 0;
         let polygons = undefined;
 
         const canvas = document.getElementById('canvas');
@@ -64,7 +72,7 @@
 
         document.getElementById('load').addEventListener('change', e => {
             const reader = new FileReader();
-            reader.onload = function() {
+            reader.onload = () => {
                 gameMap = deserialize(reader.result);
                 selectedBlockIndex = 0;
                 updateHtml();
@@ -90,10 +98,16 @@
             const coordinate = findContainingNode(polygons, x, y);
             if (coordinate !== undefined) {
                 const { blockIndex, nodeIndex } = coordinate;
-                const [ label, type, childBlockIndex ] = selectableItems[selectedItem];
-                updateContents(gameMap, blockIndex, nodeIndex, type, childBlockIndex);
+                if (selectionType === 0) {
+                    const [label, type, childBlockIndex] = selectableItems[selectionIndex];
+                    updateContents(gameMap, blockIndex, nodeIndex, type, childBlockIndex);
+                } else if (selectionType === 1) {
+                    const node = gameMap.blocks[blockIndex].nodes[nodeIndex];
+                    node.facingNeighborIndex = (node.facingNeighborIndex + 1) % gameMap.p;
+                }
                 updateHtml();
             }
+            e.preventDefault();
         });
 
         function updateBlockSelect() {
@@ -116,33 +130,33 @@
                 innerHTML = `
 <span class="group">
     Squares per vertex: <input type="number" min="5" max="7" value="${block.q}"
-    onchange="updateBlock({max_r: parseInt(value)}); updateHtml();" />
+    onchange="updateBlock({max_r: parseInt(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Max distance: <input type="number" min="1.0" max="6.0" value="${block.max_r}"
-    onchange="updateBlock({max_r: parseFloat(value)}); updateHtml();" />
+    onchange="updateBlock({max_r: parseFloat(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Min steps to exit: <input type="number" min="0" max="5" value="${block.minRadius}"
-    onchange="updateBlock({minRadius: parseInt(value)}); updateHtml();" />
+    onchange="updateBlock({minRadius: parseInt(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Hue: <input type="number" min="0" max="359" value="${block.hue}"
-    onchange="updateBlock({hue: parseInt(value)}); updateHtml();" />
+    onchange="updateBlock({hue: parseInt(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Sat: <input type="number" min="0" max="1.00" value="${block.sat}"
-    onchange="updateBlock({hue: parseFloat(value)}); updateHtml();" />
+    onchange="updateBlock({sat: parseFloat(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Val: <input type="number" min="0" max="1.00" value="${block.val}"
-    onchange="updateBlock({hue: parseFloat(value)}); updateHtml();" />
+    onchange="updateBlock({val: parseFloat(value)}); updateCanvas();" />
 </span>
 <span class="group">
-    Is player: <input type="button" value="${block.player ? 'Yes' : 'No'}"
-    onclick="updateBlock({player: value === 'No'}); updateHtml();"/>
+    Is player: <input type="checkbox" ${block.player ? 'checked' : ''}"
+    onchange="updateBlock({player: checked}); updateCanvas();"/>
 </span>
-<input type="button" value="Delete block" onclick="TODO; updateHtml();" />
+<input type="button" value="Delete block" onclick="TODO; updateCanvas();" />
                 `;
             }
             document.getElementById('block-info').innerHTML = innerHTML;
@@ -156,22 +170,35 @@
                 ['Player button', 'PlayerButton', undefined],
             ];
             for (let i = 0; i < gameMap.blocks.length; i++) {
-                selectableItems.push([`Block ${i+1}`, 'Ref', i]);
+                selectableItems.push([`Block ${i + 1}`, 'Ref', i]);
             }
             let innerHTML = '';
             for (let i = 0; i < selectableItems.length; i++) {
-                const [ label, type, childBlockIndex ] = selectableItems[i];
-                const style = i === selectedItem ? 'class="selected"' : '';
-                innerHTML += `<input type="button" ${style} value="${label}" onclick="selectedItem = ${i}; updateHtml();" />`;
+                const [label, type, childBlockIndex] = selectableItems[i];
+                const style = selectionType === 0 && i === selectionIndex ? 'class="selected"' : '';
+                innerHTML += `
+<input type="button" ${style} value="${label}" onclick="selectionType = 0; selectionIndex = ${i}; updateHtml();" />
+                `;
             }
             document.getElementById('item-select').innerHTML = innerHTML;
         }
 
-        function updateHtml() {
-            updateBlockSelect();
-            updateBlockInfo();
-            updateItemSelect();
+        function updateActionSelect() {
+            selectableActions = [
+                ['Orientation', 'Orientation'],
+            ];
+            let innerHTML = '';
+            for (let i = 0; i < selectableActions.length; i++) {
+                const [label, type] = selectableActions[i];
+                const style = selectionType === 1 && i === selectionIndex ? 'class="selected"' : '';
+                innerHTML += `
+<input type="button" ${style} value="${label}" onclick="selectionType = 1; selectionIndex = ${i}; updateHtml();" />
+                `;
+            }
+            document.getElementById('action-select').innerHTML = innerHTML;
+        }
 
+        function updateCanvas() {
             // TODO temporarily render the block as if it's in space
             const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
             updateContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', selectedBlockIndex);
@@ -179,6 +206,14 @@
             render(canvas, polygons);
             gameMap.blocks.pop();
             gameMap.refs.pop();
+        }
+
+        function updateHtml() {
+            updateBlockSelect();
+            updateBlockInfo();
+            updateItemSelect();
+            updateActionSelect();
+            updateCanvas();
         }
 
         updateHtml();

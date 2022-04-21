@@ -15,7 +15,7 @@
  * version 1
  * #
  * Block [max_r] [min_radius] [hue] [sat] [val] [fill_with_walls] [player]
- *     Ref [node_index] [block_index] [exit_block]
+ *     Ref [node_index] [block_index] [exit_block] [orientation]
  *     Wall [node_index]
  *     Floor [node_index] [type]
  * Block ...
@@ -30,10 +30,10 @@ function serialize(gameMap) {
         const { max_r, minRadius, hue, sat, val, fillWithWalls, player, nodes } = blocks[blockIndex];
         serialized += `Block ${max_r} ${minRadius} ${hue} ${sat} ${val} ${fillWithWalls ? 1 : 0} ${player ? 1 : 0}\n`;
         for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-            const { contents } = nodes[nodeIndex];
+            const { contents, facingNeighborIndex } = nodes[nodeIndex];
             if (contents.type === 'Ref') {
                 const { blockIndex, exitBlock } = refs[contents.index];
-                serialized += `    Ref ${nodeIndex} ${blockIndex} ${exitBlock ? 1 : 0}\n`;
+                serialized += `    Ref ${nodeIndex} ${blockIndex} ${exitBlock ? 1 : 0} ${facingNeighborIndex}\n`;
             } else if (contents.type === 'Wall') {
                 serialized += `    Wall ${nodeIndex}\n`;
             } else if (buttons.find(b => sameCoordinate({ blockIndex, nodeIndex }, b))) {
@@ -65,22 +65,24 @@ function deserialize(serialized) {
             index += 8;
             currentBlockIndex++;
         } else if (tokens[index] === 'Ref') {
-            const nodeIndex = tokens[index + 1];
-            const blockIndex = tokens[index + 2];
-            const exitBlock = tokens[index + 3];
+            const nodeIndex = parseInt(tokens[index + 1]);
+            const blockIndex = parseInt(tokens[index + 2]);
+            const exitBlock = tokens[index + 3] !== '0';
+            const facingNeighborIndex = parseInt(tokens[index + 4]);
             updateContents(gameMap, currentBlockIndex, nodeIndex, 'Ref', blockIndex);
             gameMap.refs[gameMap.refs.length - 1].exitBlock = exitBlock;
-            index += 4;
+            gameMap.blocks[currentBlockIndex].nodes[nodeIndex].facingNeighborIndex = facingNeighborIndex;
+            index += 5;
         } else if (tokens[index] === 'Wall') {
-            const nodeIndex = tokens[index + 1];
+            const nodeIndex = parseInt(tokens[index + 1]);
             updateContents(gameMap, currentBlockIndex, nodeIndex, 'Wall');
             index += 2;
         } else if (tokens[index] === 'Floor') {
-            const nodeIndex = tokens[index + 1];
+            const nodeIndex = parseInt(tokens[index + 1]);
             const type = tokens[index + 2];
             if (type === 'Button') {
                 gameMap.buttons.push({ blockIndex: currentBlockIndex, nodeIndex });
-            } else if (type === 'Button') {
+            } else if (type === 'PlayerButton') {
                 gameMap.playerButton = { blockIndex: currentBlockIndex, nodeIndex };
             }
             index += 3;

@@ -97,6 +97,7 @@
             const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
             if (dir !== undefined) {
                 moveDir(dir);
+                e.preventDefault();
             }
         });
     </script>
