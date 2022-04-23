@@ -205,7 +205,7 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
     return polygons;
 }
 
-function findContainingNode(polygons, x, y) {
+function findContainingNode(polygons, x, y, targetDepth) {
     const crossProduct = (x1, y1, x2, y2) => x1 * y2 - x2 * y1;
 
     // Returns 1 or -1, depending on the side that (x, y) is on relative to the line through (x1, y1) and (x2, y2).
@@ -231,8 +231,8 @@ function findContainingNode(polygons, x, y) {
 
     // TODO only filter to blocks at the current depth, so that you can change a block's containing node
     for (let i = polygons.length - 1; i >= 0; i--) {
-        const { points, coordinate } = polygons[i];
-        if (coordinate !== undefined && isInsidePolygon(points)) {
+        const { depth, points, coordinate } = polygons[i];
+        if (coordinate !== undefined && depth === targetDepth && isInsidePolygon(points)) {
             return coordinate;
         }
     }

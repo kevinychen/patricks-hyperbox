@@ -97,7 +97,7 @@
         canvas.addEventListener('mousedown', e => {
             const { left, top } = canvas.getBoundingClientRect();
             const x = e.clientX - left, y = e.clientY - top;
-            const coordinate = findContainingNode(polygons, x, y);
+            const coordinate = findContainingNode(polygons, x, y, 0);
             if (coordinate !== undefined) {
                 const { blockIndex, nodeIndex } = coordinate;
                 if (selectionType === 0) {
