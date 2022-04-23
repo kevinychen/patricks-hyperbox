@@ -199,13 +199,8 @@
         }
 
         function updateCanvas() {
-            // TODO temporarily render the block as if it's in space
-            const space = addBlockToGameMap(gameMap, { q: 5, max_r: 1, minRadius: 0, hue: 0, sat: 0, val: 0 });
-            updateContents(gameMap, gameMap.blocks.length - 1, 0, 'Ref', selectedBlockIndex);
             polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlockIndex);
             render(canvas, polygons);
-            gameMap.blocks.pop();
-            gameMap.refs.pop();
         }
 
         function updateHtml() {

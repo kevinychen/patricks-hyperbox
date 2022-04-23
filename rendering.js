@@ -86,13 +86,15 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
         }
 
         function processNode(center_r, center_θ, heading, node) {
-            polygons.push({
-                depth,
-                points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
-                strokeStyle: `hsl(${hue},${100 * sat}%,50%)`,
-                fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
-                coordinate: node.coordinate,
-            });
+            if (hue !== -1) {
+                polygons.push({
+                    depth,
+                    points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
+                    strokeStyle: `hsl(${hue},${100 * sat}%,50%)`,
+                    fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
+                    coordinate: node.coordinate,
+                });
+            }
 
             if (node.contents.type === 'Ref') {
                 const block = blocks[refs[node.contents.index].blockIndex];
@@ -171,7 +173,7 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
     }
 
     if (blocks.length === 0) {
-        return;
+        return [];
     }
     const playerRef = refs.find(ref => blocks[ref.blockIndex].player);
     const { blockIndex, nodeIndex } = startBlockIndex !== undefined
@@ -183,8 +185,11 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
     const [center_r, center_θ, centerHeading] = processBlock(
         parentBlock, nodeIndex, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, 0, (r, θ) => [r, θ]);
 
+    // ensure there is a parent
+    addBlockToGameMap(gameMap, { q: parentBlock.q, max_r: 0, minRadius: 0, hue: -1 });
+    updateContents(gameMap, blocks.length - 1, 0, 'Ref', blockIndex);
     const parentRef = refs.find(ref => ref.exitBlock && ref.blockIndex === blockIndex);
-    if (parentRef !== undefined) {
+    {
         // TODO this might require taking an arbitrarily high ancestor block
         const { blockIndex, nodeIndex } = parentRef.parentNode;
         const grandparentBlock = blocks[blockIndex];
@@ -193,6 +198,8 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
         processBlock(grandparentBlock, nodeIndex, -2 * π * grandparentBlock.nodes[nodeIndex].facingNeighborIndex / p, -1,
             (r, θ) => move(center_r, center_θ, atanh(Math.min(R_0 * tanh(r), 1 - ɛ)), centerHeading + θ));
     }
+    blocks.pop();
+    refs.pop();
 
     polygons.sort(({ depth: depth1 }, { depth: depth2 }) => depth1 - depth2);
     return polygons;
