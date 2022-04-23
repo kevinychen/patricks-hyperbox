@@ -59,8 +59,7 @@
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
     <script>
-        const P = 4;
-        let gameMap = newGameMap(P);
+        let gameMap = window.location.hash ? deserialize(atob(window.location.hash.substring(1))) : newGameMap(4);
         let selectedBlockIndex = 0;
         let selectableItems = [];
         let selectableActions = [];
@@ -203,6 +202,7 @@
         function updateCanvas() {
             polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlockIndex);
             render(canvas, polygons);
+            window.location.hash = btoa(serialize(gameMap));
         }
 
         function updateHtml() {
