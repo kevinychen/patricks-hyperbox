@@ -33,36 +33,18 @@
     <script src="./tessellations.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
+    <script src="./serialization.js"></script>
     <script>
-
-        const P = 4, Q = 5;
-        const gameMap = newGameMap(P);
-        const outerRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 2, minRadius: 2, hue: 120, sat: 1, val: .5 });
-        const middleRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 3, minRadius: 2, hue: 197, sat: .71, val: .5 });
-        const innerRoom = addBlockToGameMap(gameMap, { q: Q, max_r: 3, minRadius: 1, hue: 39, sat: 1, val: .5 });
-        const player = addBlockToGameMap(
-            gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 350, sat: 1, val: .75, fillWithWalls: true, player: true });
-        const normalBlock = addBlockToGameMap(
-            gameMap, { q: Q, max_r: 1, minRadius: 0, hue: 0, sat: .59, val: .4, fillWithWalls: true });
-        const niceUpdateContents = (gameMap, block, path, type, childBlock) => updateContents(
-            gameMap, gameMap.blocks.findIndex(b => b === block), getNodeIndex(block, path), type, gameMap.blocks.findIndex(b => b === childBlock));
-        niceUpdateContents(gameMap, outerRoom, [], 'Ref', middleRoom);
-        niceUpdateContents(gameMap, middleRoom, [0, 1], 'Ref', innerRoom);
-        niceUpdateContents(gameMap, middleRoom, [3], 'Ref', player);
-        niceUpdateContents(gameMap, middleRoom, [0], 'Ref', normalBlock);
-        niceUpdateContents(gameMap, innerRoom, [2], 'Button');
-        niceUpdateContents(gameMap, outerRoom, [1], 'PlayerButton');
-        const wallPaths = [
-            [0, 1, 2], [0, 1, 2, 1], [0, 1, 2, 1, 0], [0, 2], [0, 2, 1], [0, 2, 1, 1], [0, 2, 3],
-            [0, 2, 3, 3], [2, 3, 2], [2, 3, 2, 3], [2, 3, 2, 3, 3], [2, 2], [2, 2, 3], [2, 2, 3, 3],
-            [2, 2, 1], [2, 2, 1, 1], [1, 2], [1, 2, 1], [1, 2, 1, 1], [1, 2, 3], [1, 2, 3, 3],
-            [1, 1, 2], [1, 1, 2, 1], [1, 1, 2, 1, 0], [1, 3, 2], [1, 3, 2, 3], [1, 3, 2, 3, 3],
-            [3, 2, 1], [3, 2, 1, 1], [3, 2, 3], [3, 2, 3, 3],
-        ];
-        for (const path of wallPaths) {
-            niceUpdateContents(gameMap, middleRoom, path, 'Wall');
-        }
-        getNode(middleRoom, [3]).facingNeighborIndex = 3;
+        const defaultSerializedMap = `
+dmVyc2lvbiAxCiMKQmxvY2sgMiAyIDEyMCAxIDAuNSAwIDAKICAgIFJlZiAwIDEgMSAwCiAgICBGbG9vciA3IFBsYXllckJ1dHRvbgpCbG9jayAzIDIgMTk
+3IDAuNzEgMC41IDAgMAogICAgUmVmIDEgNCAxIDAKICAgIFJlZiAyIDIgMSAwCiAgICBSZWYgMyAzIDEgMwogICAgV2FsbCAxMAogICAgV2FsbCAxMQogIC
+AgV2FsbCAxMgogICAgV2FsbCAxMwogICAgV2FsbCAxNAogICAgV2FsbCAxNQogICAgV2FsbCAxNgogICAgV2FsbCAxNwogICAgV2FsbCAxOAogICAgV2Fsb
+CAxOQogICAgV2FsbCAyMAogICAgV2FsbCAyMQogICAgV2FsbCAyMwogICAgV2FsbCAyNAogICAgV2FsbCAyNQogICAgV2FsbCAyNgogICAgV2FsbCAyNwog
+ICAgV2FsbCAyOAogICAgV2FsbCAyOQogICAgV2FsbCAzMAogICAgV2FsbCAzMgogICAgV2FsbCAzMwogICAgV2FsbCAzNAogICAgV2FsbCAzNQogICAgV2F
+sbCAzNgogICAgV2FsbCAzOAogICAgV2FsbCAzOQogICAgV2FsbCA0MQogICAgV2FsbCA0MgogICAgV2FsbCA0MwogICAgV2FsbCA0NApCbG9jayAzIDEgMz
+kgMSAwLjUgMCAwCiAgICBGbG9vciA1IEJ1dHRvbgpCbG9jayAxIDAgMzUwIDEgMC43NSAwIDEKICAgIFdhbGwgMApCbG9jayAxIDAgMCAwLjU5IDAuNCAwI
+DAKICAgIFdhbGwgMAo=`;
+        const gameMap = deserialize(atob(window.location.hash ? window.location.hash.substring(1) : defaultSerializedMap));
 
         const canvas = document.getElementById('canvas');
         canvas.width = WIDTH;
