@@ -1,3 +1,6 @@
+/*
+ * This file is for reference only. Types are not enforced in the code.
+ */
 
 interface GameMap {
 

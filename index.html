@@ -30,7 +30,8 @@
         <input type="button" class="key" style="bottom: 10px; right: 190px;" value="←" onclick="moveDir(2);" />
         <input type="button" class="key" style="bottom: 10px; right: 100px;" value="↓" onclick="moveDir(3);" />
     </div>
-    <script src="./tessellations.js"></script>
+    <script src="./math.js"></script>
+    <script src="./treePath.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
@@ -50,28 +51,72 @@ DAKICAgIFdhbGwgMAo=`;
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
 
-        const contentsLocationMap = new Map();
-        let animatingStep = 0;
-        let currDir = undefined;
-        render(canvas, getPolygons(gameMap, contentsLocationMap, animatingStep));
+        let animationMap = new Map();
+        let animationStep = 0;
+        let polygons = getPolygons(gameMap);
+        updateAnimationMap(polygons, animationMap);
+        render(canvas, polygons);
 
         function animate() {
-            if (animatingStep > 0) {
-                animatingStep--;
+            if (animationStep > 0) {
+                animationStep--;
                 setTimeout(animate, 40);
-                render(canvas, getPolygons(gameMap, contentsLocationMap, animatingStep, currDir));
+                render(canvas, polygons, animationMap, animationStep)
+                if (animationStep === 0) {
+                    updateAnimationMap(polygons, animationMap);
+                }
             } else if (isWin(gameMap)) {
                 alert('You win!');
             }
         }
 
+        function getRootToPlayerPath() {
+            const down = [];
+            let ref = gameMap.refs.find(r => gameMap.blocks[r.blockIndex].player && r.exitBlock);
+            // TODO determine correct bounds here
+            for (let i = 0; i < 5; i++) {
+                down.unshift(ref.parentNode);
+                ref = gameMap.refs.find(r => r.blockIndex === ref.parentNode.blockIndex && r.exitBlock);
+                if (ref === undefined) {
+                    break;
+                }
+            }
+            return new TreePath([], down);
+        }
+
+        function isValidConcat(treePath1, treePath2) {
+            for (let i = 0; i < treePath2.up.length; i++) {
+                if (i >= treePath1.down.length
+                    || !sameCoordinate(treePath1.down[treePath1.down.length - 1 - i], treePath2.up[treePath2.up.length - 1 - i])) {
+                        return false;
+                    }
+            }
+            return true;
+        }
+
         function moveDir(dir) {
-            if (animatingStep !== 0) {
+            if (animationStep !== 0) {
                 return;
             }
-            movePlayer(gameMap, dir);
-            animatingStep = NUM_ANIMATION_STEPS;
-            currDir = dir;
+
+            const rootToPlayerPath = getRootToPlayerPath();
+            const { moves, playerMove } = movePlayer(gameMap, dir);
+            const newAnimationMap = new Map();
+            for (const { treePath, extraValue, points } of animationMap.values()) {
+                let newTreePath = treePath;
+                for (const move of moves) {
+                    // TODO it's also possible for an ancestor to have moved, not just this node itself
+                    if (isValidConcat(rootToPlayerPath.concat(treePath), move)) {
+                        newTreePath = treePath.concat(move);
+                        break;
+                    }
+                }
+                newTreePath = playerMove.reverse().concat(newTreePath);
+                newAnimationMap.set(newTreePath.hash(extraValue), { newTreePath, extraValue, points });
+            }
+            animationMap = newAnimationMap;
+            animationStep = NUM_ANIMATION_STEPS;
+            polygons = getPolygons(gameMap, dir);
             animate();
         }
 

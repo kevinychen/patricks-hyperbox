@@ -27,6 +27,8 @@
 
 <body>
     <div id="menu">
+        <input type="button" value="New" onclick="gameMap = newGameMap(4); updateHtml();" />
+
         <input id="load" type="file" style="display:none;" />
         <input type="button" value="Load" onclick="document.getElementById('load').click();" />
 
@@ -54,7 +56,8 @@
     </div>
     <canvas id="canvas"></canvas>
 
-    <script src="./tessellations.js"></script>
+    <script src="./math.js"></script>
+    <script src="./treePath.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
@@ -154,7 +157,7 @@
     onchange="updateBlock({val: parseFloat(value)}); updateCanvas();" />
 </span>
 <span class="group">
-    Is player: <input type="checkbox" ${block.player ? 'checked' : ''}"
+    Is player: <input type="checkbox" ${block.player ? 'checked' : ''}
     onchange="updateBlock({player: checked}); updateCanvas();"/>
 </span>
 <input type="button" value="Delete block" onclick="TODO; updateCanvas();" />
@@ -200,7 +203,7 @@
         }
 
         function updateCanvas() {
-            polygons = getPolygons(gameMap, new Map(), 0, undefined, selectedBlockIndex);
+            polygons = getPolygons(gameMap, undefined, selectedBlockIndex);
             render(canvas, polygons);
             window.location.hash = btoa(serialize(gameMap));
         }

@@ -13,40 +13,36 @@ function beltramiKleinProjection(r, θ) {
     return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
 }
 
-function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockIndex) {
+// Given (r, θ, heading) for the given node of a block, return (r, θ, heading) for the center node of the block
+function centerNodePosition(node, r, θ, heading) {
+    const [new_r, new_θ, newHeading] = move(r, θ, node.r, node.θ + π + heading - node.heading);
+    return [new_r, new_θ, newHeading + π - node.θ];
+}
+
+function getPolygons(gameMap, currDir, startBlockIndex) {
     const { p, blocks, refs, buttons, playerButton } = gameMap;
 
-    function animate(key, points) {
-        if (animatingStep === 0) {
-            locationMap.set(key, points);
-            return points;
-        }
-        const prevPoints = locationMap.get(key) || points;
-        const interpolatedPoints = [];
-        for (let i = 0; i < points.length; i++) {
-            interpolatedPoints.push([
-                points[i][0] + (prevPoints[i][0] - points[i][0]) * animatingStep / NUM_ANIMATION_STEPS,
-                points[i][1] + (prevPoints[i][1] - points[i][1]) * animatingStep / NUM_ANIMATION_STEPS,
-            ]);
-        }
-        return interpolatedPoints;
-    }
-
     const polygons = [];
-    const processedBlocks = new Map();
 
-    // heading is toward the first neighbor of node
-    function processBlock(block, nodeIndex, heading, depth, transformPointFunc) {
+    /**
+     * Adds all polygons in each node of the given block.
+     *
+     * @param {Block} block The block
+     * @param {number} nodeIndex The index of the node at (0, 0)
+     * @param {number} heading The heading of the (center of the) first neighbor of the node at (0, 0)
+     * @param {TreePath} treePath The path from the player block to this block
+     * @param {function} transformPointFunc Transforms (r, θ) in the coordinate space of this block into (r, θ) in the
+     * coordinate space of the original block
+     */
+    function processBlock(block, nodeIndex, heading, treePath, transformPointFunc) {
         const { q, hue, sat, val, nodes } = block;
+        const node = nodes[nodeIndex];
+        const { up, down } = treePath;
         const { D, S } = getParameters(p, q);
 
-        let centerPosition = undefined;
-
-        // TODO this isn't correct, only return early if we're rendering the same ref
-        if (processedBlocks.has(block)) {
-            return processedBlocks.get(block);
+        if (up.length >= 3 || down.length - up.length >= 4) {
+            return;
         }
-        processedBlocks.set(block, []);
 
         function getPolygon(center_r, center_θ, heading, scale = 1) {
             const points = [];
@@ -86,10 +82,14 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
         }
 
         function processNode(center_r, center_θ, heading, node) {
+            const newTreePath = TreePath.empty().moveUp(startCoordinate).concat(treePath);
+
             if (hue !== -1) {
                 polygons.push({
-                    depth,
-                    points: animate(node.coordinate, getPolygon(center_r, center_θ, heading)),
+                    depth: down.length - up.length,
+                    treePath: newTreePath,
+                    extraValue: node.coordinate.nodeIndex,
+                    points: getPolygon(center_r, center_θ, heading),
                     strokeStyle: `hsl(${hue},${100 * sat}%,50%)`,
                     fillStyle: `hsl(${hue},${100 * sat}%,${100 * val * (node.contents.type === 'Wall' ? 1 : 1.7)}%)`,
                     coordinate: node.coordinate,
@@ -102,18 +102,22 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
                 // R_0 is the ratio of length of a square in the Beltrami-Klein projection of this block,
                 // to the length of the smallest square containing the projection of the entire block.
                 const R_0 = tanh((block.minRadius + .5) * D) / tanh(D / 2);
-                processBlock(block, 0, heading, depth + 1, (r, θ) => transformPointFunc(
-                    ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + headingAdjustment)));
+                if (down.length > 0 || up.length === 0 || !sameCoordinate(node.coordinate, up[0])) {
+                    processBlock(block, 0, heading, treePath.moveDown(node.coordinate), (r, θ) => transformPointFunc(
+                        ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + headingAdjustment)));
+                }
                 polygons.push({
-                    depth,
-                    points: animate(block, getPolygon(center_r, center_θ, heading + headingAdjustment)),
+                    depth: down.length - up.length,
+                    treePath: newTreePath.moveDown(node.coordinate),
+                    extraValue: -1,
+                    points: getPolygon(center_r, center_θ, heading + headingAdjustment),
                     strokeStyle: VOID_COLOR,
                     fillStyle: VOID_COLOR,
                 });
                 if (block.player) {
                     for (const whichEye of [-1, 1]) {
                         polygons.push({
-                            depth: depth + 1,
+                            depth: down.length - up.length + 1,
                             points: getPlayerEye(center_r, center_θ, heading + headingAdjustment, whichEye, currDir),
                             strokeStyle: 'black',
                             fillStyle: 'black',
@@ -125,23 +129,29 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
             const button = buttons.find(b => sameCoordinate(node.coordinate, b));
             if (button !== undefined) {
                 polygons.push({
-                    depth,
-                    points: animate(button, getPolygon(center_r, center_θ, heading, .8)),
+                    depth: down.length - up.length,
+                    treePath: newTreePath,
+                    extraValue: -2,
+                    points: getPolygon(center_r, center_θ, heading, .8),
                     strokeStyle: 'gray',
                     fillStyle: 'transparent',
                 });
             }
             if (playerButton !== undefined && sameCoordinate(node.coordinate, playerButton)) {
                 polygons.push({
-                    depth,
-                    points: animate(playerButton, getPolygon(center_r, center_θ, heading, .8)),
+                    depth: down.length - up.length,
+                    treePath: newTreePath,
+                    extraValue: -4,
+                    points: getPolygon(center_r, center_θ, heading, .8),
                     strokeStyle: 'gray',
                     fillStyle: 'transparent',
                 });
                 for (const whichEye of [-1, 1]) {
                     polygons.push({
-                        depth,
-                        points: animate(whichEye, getPlayerEye(center_r, center_θ, heading, whichEye)),
+                        depth: down.length - up.length,
+                        treePath: newTreePath,
+                        extraValue: -4 + whichEye,
+                        points: getPlayerEye(center_r, center_θ, heading, whichEye),
                         strokeStyle: 'gray',
                         fillStyle: 'gray',
                     });
@@ -149,13 +159,12 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
             }
         }
 
-        function helper(nodeIndex, r, θ, heading, prevNodeIndex) {
-            if (nodeIndex === 0) {
-                centerPosition = [r, θ, heading];
-            }
-            processNode(r, θ, heading, nodes[nodeIndex]);
+        // recurse to all nodes in the block
+        function processNodes(nodeIndex, r, θ, heading, prevNodeIndex) {
+            const node = nodes[nodeIndex];
+            processNode(r, θ, heading, node);
             for (let i = 0; i < p; i++) {
-                const neighbor = nodes[nodeIndex].neighbors[i];
+                const neighbor = node.neighbors[i];
                 if (!neighbor?.isMainEdge) {
                     continue;
                 }
@@ -164,43 +173,44 @@ function getPolygons(gameMap, locationMap, animatingStep, currDir, startBlockInd
                     continue;
                 }
                 const [new_r, new_θ, newHeading] = move(r, θ, D, heading + 2 * π * i / p);
-                helper(newNodeIndex, new_r, new_θ, newHeading - 2 * π * newReturnNeighborIndex / p + π, nodeIndex);
+                processNodes(newNodeIndex, new_r, new_θ, newHeading - 2 * π * newReturnNeighborIndex / p + π, nodeIndex);
             }
         }
-        helper(nodeIndex, 0, 0, heading, -1);
-        processedBlocks.set(block, centerPosition);
-        return centerPosition;
+        processNodes(nodeIndex, 0, 0, heading, -1);
+
+        // recurse to parent block
+        if (down.length === 0) {
+            // ensure there is a parent
+            addBlockToGameMap(gameMap, { q: block.q, max_r: 0, minRadius: 0, hue: -1 });
+            updateContents(gameMap, blocks.length - 1, 0, 'Ref', blocks.findIndex(b => b === block));
+
+            const coordinate = refs.find(ref => blocks[ref.blockIndex] === block && ref.exitBlock).parentNode;
+            const { blockIndex, nodeIndex } = coordinate;
+            const parentBlock = blocks[blockIndex];
+            const parentHeading = -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p;
+            const [center_r, center_θ, centerHeading] = centerNodePosition(node, 0, 0, heading);
+            const { D } = getParameters(p, block.q);
+            const R_0 = tanh((block.minRadius + .5) * D) / tanh(D / 2);
+            processBlock(parentBlock, nodeIndex, parentHeading, treePath.moveUp(coordinate),
+                (r, θ) => move(center_r, center_θ, atanh(Math.min(R_0 * tanh(r), 1 - ɛ)), centerHeading + θ));
+
+            blocks.pop();
+            refs.pop();
+        }
     }
 
     if (blocks.length === 0) {
         return [];
     }
     const playerRef = refs.find(ref => blocks[ref.blockIndex].player);
-    const { blockIndex, nodeIndex } = startBlockIndex !== undefined
+    const startCoordinate = startBlockIndex !== undefined
         ? blocks[startBlockIndex].nodes[0].coordinate
         : (playerRef !== undefined ? playerRef.parentNode : blocks[0].nodes[0].coordinate);
+    const { blockIndex, nodeIndex } = startCoordinate;
     const parentBlock = blocks[blockIndex];
-
-    // player block 0 always faces east on the screen
-    const [center_r, center_θ, centerHeading] = processBlock(
-        parentBlock, nodeIndex, -2 * π * parentBlock.nodes[nodeIndex].facingNeighborIndex / p, 0, (r, θ) => [r, θ]);
-
-    // ensure there is a parent
-    addBlockToGameMap(gameMap, { q: parentBlock.q, max_r: 0, minRadius: 0, hue: -1 });
-    updateContents(gameMap, blocks.length - 1, 0, 'Ref', blockIndex);
-    const parentRef = refs.find(ref => ref.exitBlock && ref.blockIndex === blockIndex);
-    {
-        // TODO this might require taking an arbitrarily high ancestor block
-        const { blockIndex, nodeIndex } = parentRef.parentNode;
-        const grandparentBlock = blocks[blockIndex];
-        const { D } = getParameters(p, parentBlock.q);
-        const R_0 = tanh((parentBlock.minRadius + .5) * D) / tanh(D / 2);
-        processBlock(grandparentBlock, nodeIndex, -2 * π * grandparentBlock.nodes[nodeIndex].facingNeighborIndex / p, -1,
-            (r, θ) => move(center_r, center_θ, atanh(Math.min(R_0 * tanh(r), 1 - ɛ)), centerHeading + θ));
-    }
-    blocks.pop();
-    refs.pop();
-
+    const node = parentBlock.nodes[nodeIndex];
+    const startHeading = -2 * π * node.facingNeighborIndex / p;
+    processBlock(parentBlock, nodeIndex, startHeading, TreePath.empty(), (r, θ) => [r, θ]);
     polygons.sort(({ depth: depth1 }, { depth: depth2 }) => depth1 - depth2);
     return polygons;
 }
@@ -229,7 +239,6 @@ function findContainingNode(polygons, x, y, targetDepth) {
         return inside;
     }
 
-    // TODO only filter to blocks at the current depth, so that you can change a block's containing node
     for (let i = polygons.length - 1; i >= 0; i--) {
         const { depth, points, coordinate } = polygons[i];
         if (coordinate !== undefined && depth === targetDepth && isInsidePolygon(points)) {
@@ -239,15 +248,39 @@ function findContainingNode(polygons, x, y, targetDepth) {
     return undefined;
 }
 
-function render(canvas, polygons) {
+function updateAnimationMap(polygons, animationMap) {
+    animationMap.clear();
+    for (const { treePath, extraValue, points } of polygons) {
+        if (treePath !== undefined) {
+            animationMap.set(treePath.hash(extraValue), { treePath, extraValue, points });
+        }
+    }
+}
+
+function render(canvas, polygons, animationMap, animatingStep) {
+    function animate(key, points) {
+        const prevPoints = animationMap.has(key) ? animationMap.get(key).points : points;
+        const interpolatedPoints = [];
+        for (let i = 0; i < points.length; i++) {
+            interpolatedPoints.push([
+                points[i][0] + (prevPoints[i][0] - points[i][0]) * animatingStep / NUM_ANIMATION_STEPS,
+                points[i][1] + (prevPoints[i][1] - points[i][1]) * animatingStep / NUM_ANIMATION_STEPS,
+            ]);
+        }
+        return interpolatedPoints;
+    }
+
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = VOID_COLOR;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    for (const { points, strokeStyle, fillStyle } of polygons) {
+    for (const { treePath, extraValue, points, strokeStyle, fillStyle } of polygons) {
         ctx.strokeStyle = strokeStyle;
         ctx.fillStyle = fillStyle;
         ctx.beginPath();
-        for (const [x, y] of points) {
+        const actualPoints = treePath !== undefined && animationMap !== undefined
+            ? animate(treePath.hash(extraValue), points)
+            : points;
+        for (const [x, y] of actualPoints) {
             ctx.lineTo(x, y);
         }
         ctx.stroke();
