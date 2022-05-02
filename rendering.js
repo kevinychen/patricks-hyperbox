@@ -137,7 +137,7 @@ function getPolygons(gameMap, currDir, startBlockIndex) {
                     fillStyle: 'transparent',
                 });
             }
-            if (playerButton !== undefined && sameCoordinate(node.coordinate, playerButton)) {
+            if (sameCoordinate(node.coordinate, playerButton)) {
                 polygons.push({
                     depth: down.length - up.length,
                     treePath: newTreePath,

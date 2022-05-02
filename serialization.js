@@ -38,7 +38,7 @@ function serialize(gameMap) {
                 serialized += `    Wall ${nodeIndex}\n`;
             } else if (buttons.find(b => sameCoordinate({ blockIndex, nodeIndex }, b))) {
                 serialized += `    Floor ${nodeIndex} Button\n`;
-            } else if (playerButton !== undefined && sameCoordinate({ blockIndex, nodeIndex }, playerButton)) {
+            } else if (sameCoordinate({ blockIndex, nodeIndex }, playerButton)) {
                 serialized += `    Floor ${nodeIndex} PlayerButton\n`;
             }
         }

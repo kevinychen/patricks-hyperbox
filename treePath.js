@@ -19,8 +19,10 @@
  * @param {NodeCoordinate} coordinate2
  * @returns {boolean}
  */
+// TODO is this still needed? Shouldn't there be at most one of any node coordinate?
 function sameCoordinate(coordinate1, coordinate2) {
-    return coordinate1.blockIndex === coordinate2.blockIndex && coordinate1.nodeIndex === coordinate2.nodeIndex;
+    return coordinate1 !== undefined && coordinate2 !== undefined
+        && coordinate1.blockIndex === coordinate2.blockIndex && coordinate1.nodeIndex === coordinate2.nodeIndex;
 }
 
 class TreePath {
@@ -54,7 +56,7 @@ class TreePath {
      * @returns {TreePath}
      */
     moveDown(coordinate) {
-        if (this.down.length === 0 && this.up.length > 0 && sameCoordinate(this.up[0], coordinate)) {
+        if (this.down.length === 0 && sameCoordinate(this.up[0], coordinate)) {
             return new TreePath(this.up.slice(1), this.down);
         } else {
             return new TreePath(this.up, [...this.down, coordinate]);

@@ -62,7 +62,7 @@
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
     <script>
-        let gameMap = window.location.hash ? deserialize(atob(window.location.hash.substring(1))) : newGameMap(4);
+        let gameMap = undefined;
         let selectedBlockIndex = 0;
         let selectableItems = [];
         let selectableActions = [];
@@ -73,6 +73,12 @@
         const canvas = document.getElementById('canvas');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
+
+        function reloadHash() {
+            gameMap = window.location.hash ? deserialize(atob(window.location.hash.substring(1))) : newGameMap(4);
+            updateHtml();
+        }
+        window.addEventListener('hashchange', reloadHash);
 
         document.getElementById('load').addEventListener('change', e => {
             const reader = new FileReader();
@@ -216,7 +222,7 @@
             updateCanvas();
         }
 
-        updateHtml();
+        reloadHash();
     </script>
 </body>
 

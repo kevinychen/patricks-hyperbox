@@ -2,10 +2,10 @@
  * Logic related to game bootstrapping and play mechanics. See types.ts for typings.
  */
 
-function getNodeIndex(block, path) {
+function fromNodePath(nodes, nodePath) {
     let nodeIndex = 0;
-    for (let neighborIndex of path) {
-        const neighbor = block.nodes[nodeIndex].neighbors[neighborIndex];
+    for (let neighborIndex of nodePath) {
+        const neighbor = nodes[nodeIndex].neighbors[neighborIndex];
         if (neighbor === undefined) {
             return undefined;
         }
@@ -14,8 +14,14 @@ function getNodeIndex(block, path) {
     return nodeIndex;
 }
 
-function getNode(block, path) {
-    return block.nodes[getNodeIndex(block, path)];
+function toNodePath(nodes, nodeIndex) {
+    const nodePath = [];
+    while (nodeIndex !== 0) {
+        const neighbor = nodes[nodeIndex].neighbors[0];
+        nodePath.unshift(neighbor.returnNeighborIndex);
+        nodeIndex = neighbor.nodeIndex;
+    }
+    return nodePath;
 }
 
 function newGameMap(p) {
@@ -24,14 +30,14 @@ function newGameMap(p) {
 
 function addBlockToGameMap(gameMap, properties) {
     const { q = 5, max_r = 1, minRadius = 0, hue = 120, sat = 1, val = .5, fillWithWalls = false, player = false } = properties;
-    const block = {};
+    const block = { nodes: [] };
     gameMap.blocks.push(block);
     updateBlockInGameMap(gameMap, block, { q, max_r, minRadius, hue, sat, val, fillWithWalls, player });
     return block;
 }
 
 function updateBlockInGameMap(gameMap, block, newProperties) {
-    const { p, blocks } = gameMap;
+    const { p, blocks, refs, buttons, playerButton } = gameMap;
     const { q, max_r, minRadius, hue, sat, val, fillWithWalls, player } = newProperties;
     const blockIndex = blocks.findIndex(b => b === block);
     if (q !== undefined) { block.q = q }
@@ -43,8 +49,21 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     if (fillWithWalls !== undefined) { block.fillWithWalls = fillWithWalls }
     if (player !== undefined) { block.player = player }
     if (q !== undefined || max_r !== undefined || minRadius !== undefined || fillWithWalls !== undefined) {
-        // TODO delete block refs and button refs in old block.nodes,
-        // and even better: keep existing nodes if their path is still present in the new block
+        // Keep existing objects in this block if they are still in bounds in the new block
+        const oldNodes = block.nodes;
+        const allOldContents = [];
+        for (let i = 0; i < block.nodes.length; i++) {
+            const oldNode = block.nodes[i];
+            if (oldNode.contents.type === 'Ref') {
+                allOldContents.push([i, 'Ref', refs[oldNode.contents.index].blockIndex]);
+            } else if (oldNode.contents.type !== 'Empty') {
+                allOldContents.push([i, oldContents.type]);
+            } else if (buttons.some(b => sameCoordinate(oldNode.coordinate, b))) {
+                allOldContents.push([i, 'Button']);
+            } else if (sameCoordinate(oldNode.coordinate, playerButton)) {
+                allOldContents.push([i, 'PlayerButton']);
+            }
+        }
         block.nodes = getBoundedTessellation(p, block.q, block.max_r, block.minRadius)
             .map((polygon, i) => ({
                 neighbors: polygon.neighbors,
@@ -55,6 +74,12 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
                 θ: polygon.θ,
                 heading: polygon.heading,
             }));
+        for (const [nodeIndex, type, childBlockIndex] of allOldContents) {
+            const newNodeIndex = fromNodePath(block.nodes, toNodePath(oldNodes, nodeIndex));
+            if (newNodeIndex < block.nodes.length) {
+                updateContents(gameMap, blockIndex, newNodeIndex, type, childBlockIndex);
+            }
+        }
     }
 }
 
@@ -75,7 +100,7 @@ function updateContents(gameMap, parentBlockIndex, nodeIndex, type, childBlockIn
     if (buttonIndex >= 0) {
         buttons.splice(buttonIndex, 1);
     }
-    if (playerButton !== undefined && sameCoordinate(node.coordinate, playerButton)) {
+    if (sameCoordinate(node.coordinate, playerButton)) {
         gameMap.playerButton = undefined;
     }
 
@@ -93,11 +118,10 @@ function updateContents(gameMap, parentBlockIndex, nodeIndex, type, childBlockIn
         node.contents = { type: 'Wall' };
     } else if (type === 'Button') {
         node.contents = { type: 'Empty' };
-        // TODO animations depend on this being a clone, not the same object (ditto for PlayerButton below)
-        buttons.push({ ...node.coordinate });
+        buttons.push(node.coordinate);
     } else if (type === 'PlayerButton') {
         node.contents = { type: 'Empty' };
-        gameMap.playerButton = { ...node.coordinate };
+        gameMap.playerButton = node.coordinate;
     } else {
         node.contents = { type: 'Empty' };
     }
@@ -162,7 +186,7 @@ function pushContents(gameMap, startNode, neighborIndex, up, nodeMoveMap) {
             ? []
             : [(returnNeighborIndex - endNode.facingNeighborIndex + p) % p]
                 .concat(new Array(block.minRadius - 1).fill(p / 2));
-        endNode = getNode(block, enterPath);
+        endNode = block.nodes[fromNodePath(block.nodes, enterPath)];
         newDown.push(endNode.coordinate);
         returnNeighborIndex = p / 2;
         const result = moveContents(

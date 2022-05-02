@@ -86,10 +86,9 @@ DAKICAgIFdhbGwgMAo=`;
 
         function isValidConcat(treePath1, treePath2) {
             for (let i = 0; i < treePath2.up.length; i++) {
-                if (i >= treePath1.down.length
-                    || !sameCoordinate(treePath1.down[treePath1.down.length - 1 - i], treePath2.up[treePath2.up.length - 1 - i])) {
-                        return false;
-                    }
+                if (!sameCoordinate(treePath1.down[treePath1.down.length - 1 - i], treePath2.up[treePath2.up.length - 1 - i])) {
+                    return false;
+                }
             }
             return true;
         }
