@@ -71,6 +71,7 @@
         let latestLevel = parseInt(localStorage.getItem('latestLevel') || 1);
         let level;
         let gameMap;
+        let undoDeltas;
         let polygons;
         let animationMap = new Map();
         let animationStep = 0;
@@ -96,22 +97,24 @@
             if (level === -1) {
                 document.getElementById('current-level').value = 'Custom';
                 gameMap = deserialize(atob(window.location.hash.substring(1)));
-                gameMapInitialized();
+                undoDeltas = [];
+                redrawMap();
             } else {
                 document.getElementById('current-level').value = `Level ${level}`;
                 fetch(`./levels/${level.toString().padStart(2, '0')}.txt`)
                     .then(data => data.text())
                     .then(text => {
                         gameMap = deserialize(text);
-                        gameMapInitialized();
+                        undoDeltas = [];
+                        redrawMap();
                     });
             }
         }
 
-        function gameMapInitialized() {
+        function redrawMap() {
             polygons = getPolygons(gameMap);
-            updateAnimationMap(polygons, animationMap);
             render(canvas, polygons);
+            updateAnimationMap(polygons, animationMap);
         }
 
         function animate() {
@@ -158,7 +161,7 @@
             }
 
             const rootToPlayerPath = getRootToPlayerPath();
-            const { moves, playerMove } = movePlayer(gameMap, dir);
+            const { moves, playerMove, undoDelta } = movePlayer(gameMap, dir);
             const newAnimationMap = new Map();
             for (const { treePath, extraValue, points } of animationMap.values()) {
                 let newTreePath = treePath;
@@ -174,18 +177,34 @@
             }
             animationMap = newAnimationMap;
             animationStep = NUM_ANIMATION_STEPS;
+            undoDeltas.push(undoDelta);
             polygons = getPolygons(gameMap, dir);
             animate();
         }
 
         document.addEventListener('keydown', e => {
-            const dir = {
-                ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3,
-                KeyD: 0, KeyW: 1, KeyA: 2, KeyS: 3,
-            }[e.code];
-            if (dir !== undefined) {
-                moveDir(dir);
+            if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) {
+                return;
+            }
+            if (e.code === 'KeyZ') {
+                if (undoDeltas.length > 0) {
+                    const undoDelta = undoDeltas.pop();
+                    applyGameDelta(gameMap, undoDelta);
+                    redrawMap();
+                }
                 e.preventDefault();
+            } else if (e.code === 'KeyR') {
+                initializeLevel(level);
+                e.preventDefault();
+            } else {
+                const dir = {
+                    ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3,
+                    KeyD: 0, KeyW: 1, KeyA: 2, KeyS: 3,
+                }[e.code];
+                if (dir !== undefined) {
+                    moveDir(dir);
+                    e.preventDefault();
+                }
             }
         });
     </script>

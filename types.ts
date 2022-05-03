@@ -19,7 +19,6 @@ interface Block {
     hue: number;
     sat: number;
     val: number;
-    fillWithWalls: boolean;
     player: boolean;
     nodes: Node[];
 }
@@ -27,8 +26,8 @@ interface Block {
 interface Ref {
 
     blockIndex: number;
-    parentNode: NodeCoordinate;
     exitBlock: boolean;
+    parentNode: NodeCoordinate;
 }
 
 interface Node {

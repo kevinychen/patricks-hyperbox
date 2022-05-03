@@ -1,4 +1,4 @@
-/*
+/**
  * The nodes of the map can be thought of as a rooted tree, with each child node "contained" in its parent.
  * The root is the outer-most block that's rendered.
  *
@@ -12,12 +12,6 @@
  *   B   D
  *  /
  * C
- */
-
-/**
- * @param {NodeCoordinate} coordinate1
- * @param {NodeCoordinate} coordinate2
- * @returns {boolean}
  */
 class TreePath {
     /**

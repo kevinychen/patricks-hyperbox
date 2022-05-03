@@ -5,16 +5,17 @@
  * - All blocks must be top-level. Nested blocks must be refs.
  * - Blocks can't have arbitrary IDs. Each ref must specify the block index, starting from 0.
  * - Width and height don't make sense in hyperbolic space. Instead, the "max_r" and "min_radius"
- *   parameters specify a block's dimensions.
+ *   parameters specify a block's dimensions. See the JSDoc for getBoundedTessellation in math.js
+ *   for how max_r and min_radius are defined.
  * - Similarly, x and y coordinates aren't well defined. Instead, each item specifies a
- *   "node index", which is the index of the containing node in the ordering that the nodes are
- *   generated as part of the tessellation of the parent block.
+ *   "node index", which is the index of that node in the list of nodes returned by
+ *   getBoundedTessellation.
  *
  * Here's our format:
  *
  * version 1
  * #
- * Block [max_r] [min_radius] [hue] [sat] [val] [fill_with_walls] [player]
+ * Block [max_r] [min_radius] [hue] [sat] [val] [player]
  *     Ref [node_index] [block_index] [exit_block] [orientation]
  *     Wall [node_index]
  *     Floor [node_index] [type]
@@ -27,8 +28,8 @@ function serialize(gameMap) {
     const { blocks, refs, buttons, playerButton } = gameMap;
     let serialized = 'version 1\n#\n';
     for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
-        const { max_r, minRadius, hue, sat, val, fillWithWalls, player, nodes } = blocks[blockIndex];
-        serialized += `Block ${max_r} ${minRadius} ${hue} ${sat} ${val} ${fillWithWalls ? 1 : 0} ${player ? 1 : 0}\n`;
+        const { max_r, minRadius, hue, sat, val, player, nodes } = blocks[blockIndex];
+        serialized += `Block ${max_r} ${minRadius} ${hue} ${sat} ${val} ${player ? 1 : 0}\n`;
         for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
             const { coordinate, contents, facingNeighborIndex } = nodes[nodeIndex];
             if (contents.type === 'Ref') {
@@ -59,10 +60,9 @@ function deserialize(serialized) {
                 hue: parseInt(tokens[index + 3]),
                 sat: parseFloat(tokens[index + 4]),
                 val: parseFloat(tokens[index + 5]),
-                fillWithWalls: tokens[index + 6] !== '0',
-                player: tokens[index + 7] !== '0',
+                player: tokens[index + 6] !== '0',
             });
-            index += 8;
+            index += 7;
             currentBlockIndex++;
         } else if (tokens[index] === 'Ref') {
             const nodeIndex = parseInt(tokens[index + 1]);

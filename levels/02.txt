@@ -1,6 +1,6 @@
 version 1
 #
-Block 3.3 2 120 1 0.5 0 0
+Block 3.3 2 120 1 0.5 0
     Ref 0 2 1 0
     Floor 3 PlayerButton
     Wall 5
@@ -9,8 +9,7 @@ Block 3.3 2 120 1 0.5 0 0
     Floor 19 Button
     Wall 30
     Floor 54 Button
-Block 1 0 350 1 0.75 0 1
+Block 1 0 350 1 0.75 1
     Wall 0
-Block 1 0 38 0.89 0.65 0 0
+Block 1 0 38 0.89 0.65 0
     Wall 0
-

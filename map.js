@@ -6,7 +6,7 @@ function fromNodePath(nodes, nodePath) {
     let nodeIndex = 0;
     for (let neighborIndex of nodePath) {
         const neighbor = nodes[nodeIndex].neighbors[neighborIndex];
-        if (neighbor === undefined) {
+        if (neighbor === undefined || neighbor.nodeIndex === undefined) {
             return undefined;
         }
         nodeIndex = neighbor.nodeIndex;
@@ -29,16 +29,16 @@ function newGameMap(p) {
 }
 
 function addBlockToGameMap(gameMap, properties) {
-    const { q = 5, max_r = 1, minRadius = 0, hue = 120, sat = 1, val = .5, fillWithWalls = false, player = false } = properties;
+    const { q = 5, max_r = 1, minRadius = 0, hue = 120, sat = 1, val = .5, player = false } = properties;
     const block = { nodes: [] };
     gameMap.blocks.push(block);
-    updateBlockInGameMap(gameMap, block, { q, max_r, minRadius, hue, sat, val, fillWithWalls, player });
+    updateBlockInGameMap(gameMap, block, { q, max_r, minRadius, hue, sat, val, player });
     return block;
 }
 
 function updateBlockInGameMap(gameMap, block, newProperties) {
     const { p, blocks, refs, buttons, playerButton } = gameMap;
-    const { q, max_r, minRadius, hue, sat, val, fillWithWalls, player } = newProperties;
+    const { q, max_r, minRadius, hue, sat, val, player } = newProperties;
     const blockIndex = blocks.findIndex(b => b === block);
     if (q !== undefined) { block.q = q }
     if (max_r !== undefined) { block.max_r = max_r }
@@ -46,11 +46,9 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     if (hue !== undefined) { block.hue = hue }
     if (sat !== undefined) { block.sat = sat }
     if (val !== undefined) { block.val = val }
-    if (fillWithWalls !== undefined) { block.fillWithWalls = fillWithWalls }
     if (player !== undefined) { block.player = player }
-    if (q !== undefined || max_r !== undefined || minRadius !== undefined || fillWithWalls !== undefined) {
+    if (q !== undefined || max_r !== undefined || minRadius !== undefined) {
         // Keep existing objects in this block if they are still in bounds in the new block
-        // TODO we shouldn't do this if we change q or fillWithWalls (maybe just remove fillWithWalls everywhere)
         const oldNodes = block.nodes;
         const allOldContents = [];
         for (let nodeIndex = 0; nodeIndex < block.nodes.length; nodeIndex++) {
@@ -70,7 +68,7 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
             .map((polygon, i) => ({
                 neighbors: polygon.neighbors,
                 coordinate: { blockIndex, nodeIndex: i },
-                contents: { type: block.fillWithWalls ? 'Wall' : 'Empty' },
+                contents: { type: 'Empty' },
                 facingNeighborIndex: 0,
                 r: polygon.r,
                 θ: polygon.θ,
@@ -114,8 +112,8 @@ function updateContents(gameMap, parentBlockIndex, nodeIndex, type, childBlockIn
         const refIndex = refs.length;
         const ref = {
             blockIndex: childBlockIndex,
-            parentNode: node.coordinate,
             exitBlock: true,
+            parentNode: node.coordinate,
         };
         refs.push(ref);
         node.contents = { index: refIndex, type: 'Ref' };
@@ -172,8 +170,11 @@ function pushContents(gameMap, startNode, neighborIndex, up, nodeMoveMap) {
         const { blockIndex: parentBlockIndex, nodeIndex: parentNodeIndex } = parentRef.parentNode;
         const { neighbors, facingNeighborIndex } = blocks[parentBlockIndex].nodes[parentNodeIndex];
         blockIndex = parentBlockIndex;
-        ({ nodeIndex, returnNeighborIndex, externalNeighborIndex } =
-            neighbors[(facingNeighborIndex + externalNeighborIndex) % p]);
+        const neighbor = neighbors[(facingNeighborIndex + externalNeighborIndex) % p];
+        if (neighbor === undefined) {
+            return 'CannotPush';
+        }
+        ({ nodeIndex, returnNeighborIndex, externalNeighborIndex } = neighbor);
     }
 
     let endNode = blocks[blockIndex].nodes[nodeIndex];
@@ -206,6 +207,31 @@ function pushContents(gameMap, startNode, neighborIndex, up, nodeMoveMap) {
     return 'CannotPush';
 }
 
+function applyGameDelta(gameMap, gameDelta) {
+    const { refs } = gameMap;
+    const newContents = [];
+    const undoDelta = [];
+    for (const { startNode, startFacingNeighborIndex, endNode, endFacingNeighborIndex } of gameDelta) {
+        newContents.push([endNode, startNode.contents, endFacingNeighborIndex]);
+        undoDelta.push({
+            startNode: endNode,
+            startFacingNeighborIndex: endFacingNeighborIndex,
+            endNode: startNode,
+            endFacingNeighborIndex: startFacingNeighborIndex,
+        });
+        startNode.contents = { type: 'Empty' };
+        startNode.facingNeighborIndex = 0;
+    }
+    for (const [endNode, contents, facingNeighborIndex] of newContents) {
+        endNode.contents = contents;
+        endNode.facingNeighborIndex = facingNeighborIndex;
+        if (contents.type === 'Ref') {
+            refs[contents.index].parentNode = endNode.coordinate;
+        }
+    }
+    return undoDelta;
+}
+
 function movePlayer(gameMap, dir) {
     const { p, blocks, refs } = gameMap;
     for (const ref of refs) {
@@ -215,30 +241,23 @@ function movePlayer(gameMap, dir) {
             const nodeMoveMap = new Map();
             pushContents(gameMap, playerNode, (playerNode.facingNeighborIndex + dir) % p, [playerNode.coordinate], nodeMoveMap);
 
-            const endNodes = [];
+            const gameDelta = [];
             const moves = [];
             let playerMove = TreePath.empty();
             nodeMoveMap.forEach(([endNode, neighborIndex, returnNeighborIndex, treePath], startNode) => {
-                endNodes.push([
+                gameDelta.push({
+                    startNode,
+                    startFacingNeighborIndex: startNode.facingNeighborIndex,
                     endNode,
-                    startNode.contents,
-                    (startNode.facingNeighborIndex + returnNeighborIndex - neighborIndex + p + p / 2) % p,
-                ]);
+                    endFacingNeighborIndex: (startNode.facingNeighborIndex + returnNeighborIndex - neighborIndex + p + p / 2) % p,
+                });
                 moves.push(treePath);
                 if (startNode === playerNode) {
                     playerMove = treePath;
                 }
-                startNode.contents = { type: 'Empty' };
-                startNode.facingNeighborIndex = 0;
             });
-            for (const [endNode, contents, facingNeighborIndex] of endNodes) {
-                endNode.contents = contents;
-                endNode.facingNeighborIndex = facingNeighborIndex;
-                if (contents.type === 'Ref') {
-                    refs[contents.index].parentNode = endNode.coordinate;
-                }
-            }
-            return { moves, playerMove };
+            const undoDelta = applyGameDelta(gameMap, gameDelta);
+            return { moves, playerMove, undoDelta };
         }
     }
 }

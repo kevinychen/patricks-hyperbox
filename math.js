@@ -24,7 +24,7 @@ function getParameters(p, q) {
 
 /*
  * Translates the point (r, θ) in hyperbolic space (curvature -1) a distance d in the given heading, and returns the new point and (local) heading.
- * A heading is defined as: if you move radially outwards at angle θ from the origin, your heading is always θ.
+ * A heading is defined as: if you move radially outwards from the origin at angle θ, then turn an angle ϕ counter-clockwise, your heading is θ + ϕ.
  *
  * To derive the implementation, draw a triangle between the origin, source, and destination points, and use the Hyperbolic Law of Cosines.
  * This is a bit ad-hoc compared to the standard approach with rotation matrices, but requires less code.

@@ -61,17 +61,17 @@
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
     <script>
-        let gameMap = undefined;
+        const canvas = document.getElementById('canvas');
+        canvas.width = WIDTH;
+        canvas.height = HEIGHT;
+
+        let gameMap;
+        let polygons;
         let selectedBlockIndex = 0;
         let selectableItems = [];
         let selectableActions = [];
         let selectionType = 0;
         let selectionIndex = 0;
-        let polygons = undefined;
-
-        const canvas = document.getElementById('canvas');
-        canvas.width = WIDTH;
-        canvas.height = HEIGHT;
 
         function reloadHash() {
             gameMap = window.location.hash ? deserialize(atob(window.location.hash.substring(1))) : newGameMap(4);
