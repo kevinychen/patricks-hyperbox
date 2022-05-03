@@ -5,26 +5,54 @@
     <meta charset="UTF-8">
     <meta name="Description" content="Patrick's Parabox in hyperbolic space">
     <style>
-        div {
+        .canvas-holder {
+            position: relative;
+            border: 1px solid black;
             width: 1200px;
             height: 800px;
-            border: 1px solid black;
-            margin: 0 auto;
-            position: relative;
+        }
+
+        .level-select {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+
+        #current-level {
+            width: 250px;
+            height: 70px;
+            font-size: 60px;
+        }
+
+        #level-list {
+            position: absolute;
+            display: none;
+        }
+
+        #level-list * {
+            font-size: 32px;
+        }
+
+        .level-select:hover #level-list {
+            display: block;
         }
 
         .key {
             position: absolute;
-            font-size: 60px;
             width: 80px;
             height: 80px;
+            font-size: 60px;
         }
     </style>
 </head>
 
 <body>
-    <div>
+    <div class="canvas-holder">
         <canvas id="canvas"></canvas>
+        <div class="level-select">
+            <input id="current-level" type="button" value="" onclick="initializeLevel(level);" />
+            <div id="level-list"></div>
+        </div>
         <input type="button" class="key" style="bottom: 10px; right: 10px;" value="→" onclick="moveDir(0);" />
         <input type="button" class="key" style="bottom: 100px; right: 100px;" value="↑" onclick="moveDir(1);" />
         <input type="button" class="key" style="bottom: 10px; right: 190px;" value="←" onclick="moveDir(2);" />
@@ -36,26 +64,55 @@
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
     <script>
-        const defaultSerializedMap = `
-dmVyc2lvbiAxCiMKQmxvY2sgMiAyIDEyMCAxIDAuNSAwIDAKICAgIFJlZiAwIDEgMSAwCiAgICBGbG9vciA3IFBsYXllckJ1dHRvbgpCbG9jayAzIDIgMTk
-3IDAuNzEgMC41IDAgMAogICAgUmVmIDEgNCAxIDAKICAgIFJlZiAyIDIgMSAwCiAgICBSZWYgMyAzIDEgMwogICAgV2FsbCAxMAogICAgV2FsbCAxMQogIC
-AgV2FsbCAxMgogICAgV2FsbCAxMwogICAgV2FsbCAxNAogICAgV2FsbCAxNQogICAgV2FsbCAxNgogICAgV2FsbCAxNwogICAgV2FsbCAxOAogICAgV2Fsb
-CAxOQogICAgV2FsbCAyMAogICAgV2FsbCAyMQogICAgV2FsbCAyMwogICAgV2FsbCAyNAogICAgV2FsbCAyNQogICAgV2FsbCAyNgogICAgV2FsbCAyNwog
-ICAgV2FsbCAyOAogICAgV2FsbCAyOQogICAgV2FsbCAzMAogICAgV2FsbCAzMgogICAgV2FsbCAzMwogICAgV2FsbCAzNAogICAgV2FsbCAzNQogICAgV2F
-sbCAzNgogICAgV2FsbCAzOAogICAgV2FsbCAzOQogICAgV2FsbCA0MQogICAgV2FsbCA0MgogICAgV2FsbCA0MwogICAgV2FsbCA0NApCbG9jayAzIDEgMz
-kgMSAwLjUgMCAwCiAgICBGbG9vciA1IEJ1dHRvbgpCbG9jayAxIDAgMzUwIDEgMC43NSAwIDEKICAgIFdhbGwgMApCbG9jayAxIDAgMCAwLjU5IDAuNCAwI
-DAKICAgIFdhbGwgMAo=`;
-        const gameMap = deserialize(atob(window.location.hash ? window.location.hash.substring(1) : defaultSerializedMap));
-
         const canvas = document.getElementById('canvas');
         canvas.width = WIDTH;
         canvas.height = HEIGHT;
 
+        let latestLevel = parseInt(localStorage.getItem('latestLevel') || 1);
+        let level;
+        let gameMap;
+        let polygons;
         let animationMap = new Map();
         let animationStep = 0;
-        let polygons = getPolygons(gameMap);
-        updateAnimationMap(polygons, animationMap);
-        render(canvas, polygons);
+
+        initializeLevel(window.location.hash ? -1 : parseInt(localStorage.getItem('level') || 1));
+
+        function initializeLevel(newLevel) {
+            level = newLevel;
+            localStorage.setItem('level', level);
+            if (level > latestLevel) {
+                latestLevel = level;
+                localStorage.setItem('latestLevel', latestLevel);
+            }
+
+            let innerHTML = '';
+            for (let i = 1; i <= latestLevel; i++) {
+                if (i !== level) {
+                    innerHTML += `<input type="button" value="Go to level ${i}" onclick="initializeLevel(${i});" />`;
+                }
+            }
+            document.getElementById('level-list').innerHTML = innerHTML;
+
+            if (level === -1) {
+                document.getElementById('current-level').value = 'Custom';
+                gameMap = deserialize(atob(window.location.hash.substring(1)));
+                gameMapInitialized();
+            } else {
+                document.getElementById('current-level').value = `Level ${level}`;
+                fetch(`./levels/${level.toString().padStart(2, '0')}.txt`)
+                    .then(data => data.text())
+                    .then(text => {
+                        gameMap = deserialize(text);
+                        gameMapInitialized();
+                    });
+            }
+        }
+
+        function gameMapInitialized() {
+            polygons = getPolygons(gameMap);
+            updateAnimationMap(polygons, animationMap);
+            render(canvas, polygons);
+        }
 
         function animate() {
             if (animationStep > 0) {
@@ -65,8 +122,10 @@ DAKICAgIFdhbGwgMAo=`;
                 if (animationStep === 0) {
                     updateAnimationMap(polygons, animationMap);
                 }
-            } else if (isWin(gameMap)) {
+            } else if (gameMap !== undefined && isWin(gameMap)) {
+                gameMap = undefined;
                 alert('You win!');
+                initializeLevel(level === -1 ? -1 : level + 1);
             }
         }
 

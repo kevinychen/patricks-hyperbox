@@ -6,9 +6,11 @@ Try it at https://kevinychen.github.io/patricks-hyperbox/.
 
 ![Demo](demo.gif)
 
-## How to use
-
 **This repository is still a work in progress.**
 
-Simply clone the repository and open `index.html` in the browser.
+## Running locally
+
+- Clone the repository.
+- In the root directory, run `python -m SimpleHTTPServer` (or any other web server that serves files).
+- Open `http://localhost:8000/` in the browser.
 

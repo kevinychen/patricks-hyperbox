@@ -50,6 +50,7 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
     if (player !== undefined) { block.player = player }
     if (q !== undefined || max_r !== undefined || minRadius !== undefined || fillWithWalls !== undefined) {
         // Keep existing objects in this block if they are still in bounds in the new block
+        // TODO we shouldn't do this if we change q or fillWithWalls (maybe just remove fillWithWalls everywhere)
         const oldNodes = block.nodes;
         const allOldContents = [];
         for (let nodeIndex = 0; nodeIndex < block.nodes.length; nodeIndex++) {
