@@ -21,7 +21,7 @@
  * Block ...
  */
 
-// TODO also support facingNeighborIndex for refs and PlayerButton
+// TODO also support facingNeighborIndex for PlayerButton
 
 function serialize(gameMap) {
     const { blocks, refs, buttons, playerButton } = gameMap;
@@ -30,15 +30,15 @@ function serialize(gameMap) {
         const { max_r, minRadius, hue, sat, val, fillWithWalls, player, nodes } = blocks[blockIndex];
         serialized += `Block ${max_r} ${minRadius} ${hue} ${sat} ${val} ${fillWithWalls ? 1 : 0} ${player ? 1 : 0}\n`;
         for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-            const { contents, facingNeighborIndex } = nodes[nodeIndex];
+            const { coordinate, contents, facingNeighborIndex } = nodes[nodeIndex];
             if (contents.type === 'Ref') {
                 const { blockIndex, exitBlock } = refs[contents.index];
                 serialized += `    Ref ${nodeIndex} ${blockIndex} ${exitBlock ? 1 : 0} ${facingNeighborIndex}\n`;
             } else if (contents.type === 'Wall') {
                 serialized += `    Wall ${nodeIndex}\n`;
-            } else if (buttons.find(b => sameCoordinate({ blockIndex, nodeIndex }, b))) {
+            } else if (buttons.find(b => b === coordinate)) {
                 serialized += `    Floor ${nodeIndex} Button\n`;
-            } else if (sameCoordinate({ blockIndex, nodeIndex }, playerButton)) {
+            } else if (playerButton === coordinate) {
                 serialized += `    Floor ${nodeIndex} PlayerButton\n`;
             }
         }
@@ -81,9 +81,9 @@ function deserialize(serialized) {
             const nodeIndex = parseInt(tokens[index + 1]);
             const type = tokens[index + 2];
             if (type === 'Button') {
-                gameMap.buttons.push({ blockIndex: currentBlockIndex, nodeIndex });
+                gameMap.buttons.push(gameMap.blocks[currentBlockIndex].nodes[nodeIndex].coordinate);
             } else if (type === 'PlayerButton') {
-                gameMap.playerButton = { blockIndex: currentBlockIndex, nodeIndex };
+                gameMap.playerButton = gameMap.blocks[currentBlockIndex].nodes[nodeIndex].coordinate;
             }
             index += 3;
         } else {

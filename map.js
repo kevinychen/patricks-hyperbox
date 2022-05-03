@@ -52,17 +52,18 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
         // Keep existing objects in this block if they are still in bounds in the new block
         const oldNodes = block.nodes;
         const allOldContents = [];
-        for (let i = 0; i < block.nodes.length; i++) {
-            const oldNode = block.nodes[i];
+        for (let nodeIndex = 0; nodeIndex < block.nodes.length; nodeIndex++) {
+            const oldNode = block.nodes[nodeIndex];
             if (oldNode.contents.type === 'Ref') {
-                allOldContents.push([i, 'Ref', refs[oldNode.contents.index].blockIndex]);
+                allOldContents.push([nodeIndex, 'Ref', refs[oldNode.contents.index].blockIndex, oldNode.facingNeighborIndex]);
             } else if (oldNode.contents.type !== 'Empty') {
-                allOldContents.push([i, oldContents.type]);
-            } else if (buttons.some(b => sameCoordinate(oldNode.coordinate, b))) {
-                allOldContents.push([i, 'Button']);
-            } else if (sameCoordinate(oldNode.coordinate, playerButton)) {
-                allOldContents.push([i, 'PlayerButton']);
+                allOldContents.push([nodeIndex, oldNode.contents.type]);
+            } else if (buttons.some(b => b === oldNode.coordinate)) {
+                allOldContents.push([nodeIndex, 'Button']);
+            } else if (playerButton === oldNode.coordinate) {
+                allOldContents.push([nodeIndex, 'PlayerButton']);
             }
+            updateContents(gameMap, blockIndex, nodeIndex, 'Empty');
         }
         block.nodes = getBoundedTessellation(p, block.q, block.max_r, block.minRadius)
             .map((polygon, i) => ({
@@ -74,10 +75,13 @@ function updateBlockInGameMap(gameMap, block, newProperties) {
                 θ: polygon.θ,
                 heading: polygon.heading,
             }));
-        for (const [nodeIndex, type, childBlockIndex] of allOldContents) {
+        for (const [nodeIndex, type, childBlockIndex, facingNeighborIndex] of allOldContents) {
             const newNodeIndex = fromNodePath(block.nodes, toNodePath(oldNodes, nodeIndex));
             if (newNodeIndex < block.nodes.length) {
                 updateContents(gameMap, blockIndex, newNodeIndex, type, childBlockIndex);
+                if (facingNeighborIndex !== undefined) {
+                    block.nodes[nodeIndex].facingNeighborIndex = facingNeighborIndex;
+                }
             }
         }
     }
@@ -96,11 +100,11 @@ function updateContents(gameMap, parentBlockIndex, nodeIndex, type, childBlockIn
             blocks[blockIndex].nodes[nodeIndex].contents.index = node.contents.index;
         }
     }
-    const buttonIndex = buttons.findIndex(b => sameCoordinate(node.coordinate, b));
+    const buttonIndex = buttons.findIndex(b => b === node.coordinate);
     if (buttonIndex >= 0) {
         buttons.splice(buttonIndex, 1);
     }
-    if (sameCoordinate(node.coordinate, playerButton)) {
+    if (playerButton === node.coordinate) {
         gameMap.playerButton = undefined;
     }
 
@@ -172,7 +176,7 @@ function pushContents(gameMap, startNode, neighborIndex, up, nodeMoveMap) {
     }
 
     let endNode = blocks[blockIndex].nodes[nodeIndex];
-    const newDown = [{ blockIndex, nodeIndex }];
+    const newDown = [endNode.coordinate];
     const result = moveContents(
         gameMap, startNode, endNode, neighborIndex, returnNeighborIndex, new TreePath(newUp, newDown), nodeMoveMap);
     if (result === 'CanPush' || result === 'Cycle') {

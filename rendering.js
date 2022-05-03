@@ -102,7 +102,7 @@ function getPolygons(gameMap, currDir, startBlockIndex) {
                 // R_0 is the ratio of length of a square in the Beltrami-Klein projection of this block,
                 // to the length of the smallest square containing the projection of the entire block.
                 const R_0 = tanh((block.minRadius + .5) * D) / tanh(D / 2);
-                if (down.length > 0 || up.length === 0 || !sameCoordinate(node.coordinate, up[0])) {
+                if (down.length > 0 || up.length === 0 || node.coordinate !== up[0]) {
                     processBlock(block, 0, heading, treePath.moveDown(node.coordinate), (r, θ) => transformPointFunc(
                         ...move(center_r, center_θ, atanh(tanh(r) / R_0), θ + headingAdjustment)));
                 }
@@ -126,18 +126,18 @@ function getPolygons(gameMap, currDir, startBlockIndex) {
                 }
             }
 
-            const button = buttons.find(b => sameCoordinate(node.coordinate, b));
+            const button = buttons.find(b => b === node.coordinate);
             if (button !== undefined) {
                 polygons.push({
                     depth: down.length - up.length,
                     treePath: newTreePath,
-                    extraValue: -2,
+                    extraValue: block.nodes.length + node.coordinate.nodeIndex,
                     points: getPolygon(center_r, center_θ, heading, .8),
                     strokeStyle: 'gray',
                     fillStyle: 'transparent',
                 });
             }
-            if (sameCoordinate(node.coordinate, playerButton)) {
+            if (playerButton === node.coordinate) {
                 polygons.push({
                     depth: down.length - up.length,
                     treePath: newTreePath,

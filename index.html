@@ -86,7 +86,7 @@ DAKICAgIFdhbGwgMAo=`;
 
         function isValidConcat(treePath1, treePath2) {
             for (let i = 0; i < treePath2.up.length; i++) {
-                if (!sameCoordinate(treePath1.down[treePath1.down.length - 1 - i], treePath2.up[treePath2.up.length - 1 - i])) {
+                if (treePath1.down[treePath1.down.length - 1 - i] !== treePath2.up[treePath2.up.length - 1 - i]) {
                     return false;
                 }
             }
@@ -120,7 +120,10 @@ DAKICAgIFdhbGwgMAo=`;
         }
 
         document.addEventListener('keydown', e => {
-            const dir = { ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3 }[e.code];
+            const dir = {
+                ArrowRight: 0, ArrowUp: 1, ArrowLeft: 2, ArrowDown: 3,
+                KeyD: 0, KeyW: 1, KeyA: 2, KeyS: 3,
+            }[e.code];
             if (dir !== undefined) {
                 moveDir(dir);
                 e.preventDefault();
