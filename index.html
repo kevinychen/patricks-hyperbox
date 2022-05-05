@@ -80,7 +80,9 @@
 
         function initializeLevel(newLevel) {
             level = newLevel;
-            localStorage.setItem('level', level);
+            if (level !== -1) {
+                localStorage.setItem('level', level);
+            }
             if (level > latestLevel) {
                 latestLevel = level;
                 localStorage.setItem('latestLevel', latestLevel);

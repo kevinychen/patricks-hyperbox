@@ -1,16 +1,14 @@
 const WIDTH = 1200;
 const HEIGHT = 800;
-const SCALE = 100;
 const NUM_STEPS = 20;
 const NUM_ANIMATION_STEPS = 5;
 const VOID_COLOR = 'rgb(70,70,70)';
 
-function equidistantProjection(r, θ) {
-    return [WIDTH / 2 + SCALE * r * cos(θ), HEIGHT / 2 - SCALE * r * sin(θ)];
-}
-
-function beltramiKleinProjection(r, θ) {
-    return [WIDTH / 2 + HEIGHT / 2 * tanh(r) * cos(θ), HEIGHT / 2 - HEIGHT / 2 * tanh(r) * sin(θ)];
+function poincareProjection(r, θ) {
+    return [
+        WIDTH / 2 + HEIGHT / 2 * sinh(r) * cos(θ) / (cosh(r) + 1),
+        HEIGHT / 2 - HEIGHT / 2 * sinh(r) * sin(θ) / (cosh(r) + 1),
+    ];
 }
 
 // Given (r, θ, heading) for the given node of a block, return (r, θ, heading) for the center node of the block
@@ -48,19 +46,9 @@ function getPolygons(gameMap, currDir, startBlockIndex) {
             const points = [];
             for (let i = 0; i < p; i++) {
                 const [r, θ, localHeading] = move(center_r, center_θ, scale * D / 2, heading + 2 * π * i / p);
-
-                const sideIsFar = transformPointFunc(r, θ)[0] > 10;
-                const cornerIsFar = transformPointFunc(...move(r, θ, scale * S / 2, localHeading + π / 2))[0] > 10;
                 for (let step = -NUM_STEPS / 2; step <= NUM_STEPS / 2; step++) {
-                    let d = scale * S * Math.abs(step / NUM_STEPS);
-                    if (sideIsFar) {
-                        d = 0;
-                    }
-                    // render more points near the valid parts, for a better interpolated curve
-                    else if (cornerIsFar) {
-                        d /= 1.5;
-                    }
-                    points.push(equidistantProjection(
+                    const d = scale * S * Math.abs(step / NUM_STEPS);
+                    points.push(poincareProjection(
                         ...transformPointFunc(...move(r, θ, d, localHeading + π / 2 * Math.sign(step)))));
                 }
             }
@@ -75,7 +63,7 @@ function getPolygons(gameMap, currDir, startBlockIndex) {
             }
             const points = [];
             for (let i = 0; i < NUM_STEPS; i++) {
-                points.push(equidistantProjection(
+                points.push(poincareProjection(
                     ...transformPointFunc(...move(r, θ, .09 * D, 2 * π * i / NUM_STEPS))));
             }
             return points;
