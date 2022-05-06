@@ -59,7 +59,7 @@
         <input type="button" class="key" style="bottom: 10px; right: 100px;" value="↓" onclick="moveDir(3);" />
     </div>
     <script src="./math.js"></script>
-    <script src="./treePath.js"></script>
+    <script src="./tree.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
@@ -72,8 +72,7 @@
         let level;
         let gameMap;
         let undoDeltas;
-        let polygons;
-        let animationMap = new Map();
+        let renderTree;
         let animationStep = 0;
 
         initializeLevel(window.location.hash ? -1 : parseInt(localStorage.getItem('level') || 1));
@@ -114,47 +113,8 @@
         }
 
         function redrawMap() {
-            polygons = getPolygons(gameMap);
-            render(canvas, polygons);
-            updateAnimationMap(polygons, animationMap);
-        }
-
-        function animate() {
-            if (animationStep > 0) {
-                animationStep--;
-                setTimeout(animate, 40);
-                render(canvas, polygons, animationMap, animationStep)
-                if (animationStep === 0) {
-                    updateAnimationMap(polygons, animationMap);
-                }
-            } else if (gameMap !== undefined && isWin(gameMap)) {
-                gameMap = undefined;
-                alert('You win!');
-                initializeLevel(level === -1 ? -1 : level + 1);
-            }
-        }
-
-        function getRootToPlayerPath() {
-            const down = [];
-            let ref = gameMap.refs.find(r => gameMap.blocks[r.blockIndex].player && r.exitBlock);
-            // TODO determine correct bounds here
-            for (let i = 0; i < 5; i++) {
-                down.unshift(ref.parentNode);
-                ref = gameMap.refs.find(r => r.blockIndex === ref.parentNode.blockIndex && r.exitBlock);
-                if (ref === undefined) {
-                    break;
-                }
-            }
-            return new TreePath([], down);
-        }
-
-        function isValidConcat(treePath1, treePath2) {
-            for (let i = 0; i < treePath2.up.length; i++) {
-                if (treePath1.down[treePath1.down.length - 1 - i] !== treePath2.up[treePath2.up.length - 1 - i]) {
-                    return false;
-                }
-            }
-            return true;
+            renderTree = toRenderTree(gameMap);
+            render(canvas, renderTree.getPolygons());
         }
 
         function moveDir(dir) {
@@ -162,25 +122,30 @@
                 return;
             }
 
-            const rootToPlayerPath = getRootToPlayerPath();
-            const { moves, playerMove, undoDelta } = movePlayer(gameMap, dir);
-            const newAnimationMap = new Map();
-            for (const { treePath, extraValue, points } of animationMap.values()) {
-                let newTreePath = treePath;
-                for (const move of moves) {
-                    // TODO it's also possible for an ancestor to have moved, not just this node itself
-                    if (isValidConcat(rootToPlayerPath.concat(treePath), move)) {
-                        newTreePath = treePath.concat(move);
-                        break;
-                    }
+            const { moves, undoDelta } = movePlayer(gameMap, dir);
+            renderTree.executeMoves(moves);
+            const animationMap = new Map();
+            for (const { animate, animationKey, points } of renderTree.getPolygons()) {
+                if (animate) {
+                    animationMap.set(animationKey, points);
                 }
-                newTreePath = playerMove.reverse().concat(newTreePath);
-                newAnimationMap.set(newTreePath.hash(extraValue), { newTreePath, extraValue, points });
             }
-            animationMap = newAnimationMap;
-            animationStep = NUM_ANIMATION_STEPS;
             undoDeltas.push(undoDelta);
-            polygons = getPolygons(gameMap, dir);
+            renderTree = toRenderTree(gameMap, dir);
+            animationStep = NUM_ANIMATION_STEPS;
+            const polygons = renderTree.getPolygons();
+
+            function animate() {
+                if (animationStep > 0) {
+                    animationStep--;
+                    setTimeout(animate, animationStep === 0 ? 0 : 40);
+                    render(canvas, polygons, animationMap, animationStep);
+                } else if (gameMap !== undefined && isWin(gameMap)) {
+                    gameMap = undefined;
+                    alert('You win!');
+                    initializeLevel(level === -1 ? -1 : level + 1);
+                }
+            }
             animate();
         }
 

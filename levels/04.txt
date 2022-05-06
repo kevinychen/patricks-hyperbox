@@ -1,0 +1,20 @@
+version 1
+#
+Block 2.5 2 120 1 0.5 0
+    Ref 5 0 1 0
+    Wall 7
+    Floor 10 Button
+    Wall 11
+    Wall 12
+    Wall 13
+    Floor 14 PlayerButton
+    Wall 15
+    Wall 16
+    Ref 17 1 1 0
+    Wall 19
+    Wall 20
+    Wall 22
+    Wall 23
+    Wall 24
+Block 1 0 350 1 0.75 1
+    Wall 0

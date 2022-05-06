@@ -56,7 +56,7 @@
     <canvas id="canvas"></canvas>
 
     <script src="./math.js"></script>
-    <script src="./treePath.js"></script>
+    <script src="./tree.js"></script>
     <script src="./map.js"></script>
     <script src="./rendering.js"></script>
     <script src="./serialization.js"></script>
@@ -139,7 +139,7 @@
                 innerHTML = `
 <span class="group">
     Squares per vertex: <input type="number" min="5" max="7" value="${block.q}"
-    onchange="updateBlock({max_r: parseInt(value)}); updateCanvas();" />
+    onchange="updateBlock({q: parseInt(value)}); updateCanvas();" />
 </span>
 <span class="group">
     Max distance: <input type="number" min="1.0" max="6.0" value="${block.max_r}"
@@ -207,9 +207,9 @@
         }
 
         function updateCanvas() {
-            polygons = getPolygons(gameMap, undefined, selectedBlockIndex);
+            polygons = toRenderTree(gameMap, undefined, selectedBlockIndex).getPolygons();
             render(canvas, polygons);
-            window.location.hash = btoa(serialize(gameMap));
+            history.replaceState(null, null, '#' + btoa(serialize(gameMap)));
         }
 
         function updateHtml() {

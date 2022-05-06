@@ -243,7 +243,6 @@ function movePlayer(gameMap, dir) {
 
             const gameDelta = [];
             const moves = [];
-            let playerMove = TreePath.empty();
             nodeMoveMap.forEach(([endNode, neighborIndex, returnNeighborIndex, treePath], startNode) => {
                 gameDelta.push({
                     startNode,
@@ -252,12 +251,9 @@ function movePlayer(gameMap, dir) {
                     endFacingNeighborIndex: (startNode.facingNeighborIndex + returnNeighborIndex - neighborIndex + p + p / 2) % p,
                 });
                 moves.push(treePath);
-                if (startNode === playerNode) {
-                    playerMove = treePath;
-                }
             });
             const undoDelta = applyGameDelta(gameMap, gameDelta);
-            return { moves, playerMove, undoDelta };
+            return { moves, undoDelta };
         }
     }
 }

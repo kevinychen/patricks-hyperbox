@@ -1,0 +1,46 @@
+version 1
+#
+Block 2 2 120 1 0.5 0
+    Ref 0 1 1 0
+    Floor 7 PlayerButton
+Block 3 2 197 0.71 0.5 0
+    Ref 1 4 1 0
+    Ref 2 2 1 0
+    Ref 3 3 1 3
+    Wall 10
+    Wall 11
+    Wall 12
+    Wall 13
+    Wall 14
+    Wall 15
+    Wall 16
+    Wall 17
+    Wall 18
+    Wall 19
+    Wall 20
+    Wall 21
+    Wall 23
+    Wall 24
+    Wall 25
+    Wall 26
+    Wall 27
+    Wall 28
+    Wall 29
+    Wall 30
+    Wall 32
+    Wall 33
+    Wall 34
+    Wall 35
+    Wall 36
+    Wall 38
+    Wall 39
+    Wall 41
+    Wall 42
+    Wall 43
+    Wall 44
+Block 3 1 39 1 0.5 0
+    Floor 5 Button
+Block 1 0 350 1 0.75 1
+    Wall 0
+Block 1 0 0 0.59 0.4 0
+    Wall 0
